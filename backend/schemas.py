@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 class HospitalBase(BaseModel):
     name: str
+    naver_place_id: str = ""
     tone_style: str = "polite"
     alert_threshold: int = 2
 
@@ -18,6 +19,7 @@ class HospitalCreate(HospitalBase):
 
 class HospitalUpdate(BaseModel):
     name: Optional[str] = None
+    naver_place_id: Optional[str] = None
     tone_style: Optional[str] = None
     alert_threshold: Optional[int] = None
 
@@ -120,4 +122,13 @@ class AutomationRuleOut(AutomationRuleBase):
 class ReviewStats(BaseModel):
     total_count: int
     average_rating: float
-    platform_stats: dict  # { "naver": { "count": 10, "avg": 4.2 }, ... }
+    unreplied_count: int
+    platform_stats: list  # [{ "platform": "naver", "count": 10, "avg_rating": 4.2 }]
+    rating_distribution: dict  # { "1": 5, "2": 8, ... }
+
+
+class PaginatedReviews(BaseModel):
+    total: int
+    page: int
+    size: int
+    items: list[ReviewOut]

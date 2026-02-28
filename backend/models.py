@@ -12,6 +12,7 @@ class Hospital(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
+    naver_place_id = Column(String(50), default="")  # 네이버 지도 Place ID
     tone_style = Column(String(20), default="polite")  # polite | friendly
     alert_threshold = Column(Integer, default=2)  # 기본 2점 이하 알림
     created_at = Column(DateTime, default=datetime.utcnow)

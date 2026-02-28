@@ -4,6 +4,7 @@ import { getHospital, createHospital, updateHospital } from '../api/client';
 export default function Settings() {
   const [form, setForm] = useState({
     name: '',
+    naver_place_id: '',
     tone_style: 'polite',
     alert_threshold: 2,
   });
@@ -67,6 +68,24 @@ export default function Settings() {
             required
             className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+        </div>
+
+        {/* 네이버 지도 Place ID */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            네이버 지도 Place ID
+          </label>
+          <input
+            type="text"
+            name="naver_place_id"
+            value={form.naver_place_id || ''}
+            onChange={handleChange}
+            placeholder="예: 19528043"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            네이버 지도 URL에서 hospital/ 뒤의 숫자입니다. (예: pcmap.place.naver.com/hospital/<b>19528043</b>)
+          </p>
         </div>
 
         {/* 톤앤매너 */}

@@ -4,14 +4,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import Base, engine
-from routers import hospital
+from routers import hospital, reviews
+from scheduler import start_scheduler, stop_scheduler
 
 
-# 앱 시작 시 테이블 자동 생성
+# 앱 시작 시 테이블 자동 생성 + 스케줄러 시작
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 app = FastAPI(
@@ -32,6 +35,7 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(hospital.router)
+app.include_router(reviews.router)
 
 
 @app.get("/api/health")
