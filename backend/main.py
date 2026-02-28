@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import Base, engine
-from routers import hospital, reviews, comments, alerts
+from routers import hospital, reviews
 from scheduler import start_scheduler, stop_scheduler
 
 
@@ -36,8 +36,6 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(hospital.router)
 app.include_router(reviews.router)
-app.include_router(comments.router)
-app.include_router(alerts.router)
 
 
 @app.get("/api/health")

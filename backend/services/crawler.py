@@ -9,17 +9,16 @@ from sqlalchemy.orm import Session
 
 from models import Hospital, Review
 from services.naver_crawler import fetch_naver_reviews
-from services.alert_service import check_and_create_alert
 
 logger = logging.getLogger(__name__)
 
 
-def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> list[Review]:
+def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int:
     """
     크롤링된 리뷰를 DB에 저장합니다. (중복 제외)
-    Returns: 신규 저장된 Review 객체 리스트
+    Returns: 신규 저장된 리뷰 수
     """
-    saved_reviews = []
+    saved = 0
     for r in raw_reviews:
         # 중복 체크
         existing = (
@@ -45,14 +44,12 @@ def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> lis
             reviewed_at=r.get("reviewed_at"),
         )
         db.add(review)
-        saved_reviews.append(review)
+        saved += 1
 
-    if saved_reviews:
+    if saved > 0:
         db.commit()
-        for rv in saved_reviews:
-            db.refresh(rv)
 
-    return saved_reviews
+    return saved
 
 
 def sync_naver_reviews(db: Session) -> int:
@@ -64,14 +61,9 @@ def sync_naver_reviews(db: Session) -> int:
 
     logger.info(f"네이버 리뷰 동기화 시작: place_id={hospital.naver_place_id}")
     raw_reviews = fetch_naver_reviews(hospital.naver_place_id)
-    saved_reviews = _save_reviews(db, hospital.id, raw_reviews)
-
-    # 저평점 알림 체크
-    for review in saved_reviews:
-        check_and_create_alert(db, hospital, review)
-
-    logger.info(f"네이버 리뷰 동기화 완료: 신규 {len(saved_reviews)}건")
-    return len(saved_reviews)
+    saved = _save_reviews(db, hospital.id, raw_reviews)
+    logger.info(f"네이버 리뷰 동기화 완료: 신규 {saved}건")
+    return saved
 
 
 def sync_all_reviews(db: Session) -> int:
