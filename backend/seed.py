@@ -57,7 +57,7 @@ def seed_data():
 
         # 병원 생성
         hospital = Hospital(
-            name="서울이비인후과",
+            name="장생한의원",
             naver_place_id="19528043",
             tone_style="polite",
             alert_threshold=2,

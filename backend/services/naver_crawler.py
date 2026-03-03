@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def _create_driver() -> webdriver.Chrome:
-    """Chrome 드라이버 생성"""
+    """Chrome 드라이버 생성 (사업주 프로필 사용으로 로그인 세션 유지)"""
     options = webdriver.ChromeOptions()
     if settings.CHROME_HEADLESS:
         options.add_argument("--headless=new")
@@ -31,10 +31,18 @@ def _create_driver() -> webdriver.Chrome:
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
+
+    # Chrome 사용자 프로필 경로 설정 (로그인 세션 유지)
+    if settings.CHROME_USER_DATA_DIR:
+        options.add_argument(f"--user-data-dir={settings.CHROME_USER_DATA_DIR}")
+    if settings.CHROME_PROFILE_NAME:
+        options.add_argument(f"--profile-directory={settings.CHROME_PROFILE_NAME}")
 
     service = Service(ChromeDriverManager().install())
     return webdriver.Chrome(service=service, options=options)
@@ -88,9 +96,28 @@ def _parse_date(date_str: str) -> Optional[datetime]:
 
 
 def _generate_review_id(author: str, content: str, date_str: str) -> str:
-    """리뷰 내용 기반으로 고유 ID 생성 (중복 체크용)"""
+    """리뷰 내용 기반으로 고유 ID 생성 (naver_review_id 추출 실패 시 폴백용)"""
     raw = f"{author}_{content[:50]}_{date_str}"
     return f"naver_{hashlib.md5(raw.encode()).hexdigest()[:16]}"
+
+
+def _extract_naver_review_id(item) -> str | None:
+    """답글 버튼 URL에서 네이버 리뷰 ID를 추출합니다.
+    
+    답글 버튼 href 예시:
+    https://new-m.smartplace.naver.com/bizes/place-id/{place_id}/reviews/{review_id}?...
+    """
+    import re
+    try:
+        reply_link = item.select_one('a[data-pui-click-code="reply"]')
+        if reply_link and reply_link.get("href"):
+            href = reply_link["href"]
+            match = re.search(r'/reviews/([a-f0-9]+)', href)
+            if match:
+                return match.group(1)
+    except Exception:
+        pass
+    return None
 
 
 def fetch_naver_reviews(place_id: str, max_pages: int = 10) -> list[dict]:
@@ -182,8 +209,14 @@ def fetch_naver_reviews(place_id: str, max_pages: int = 10) -> list[dict]:
                 img_elements = item.select("div.pui__MJi___ img")
                 image_urls = [img.get("src", "") for img in img_elements if img.get("src")]
 
-                # 고유 ID 생성
-                platform_review_id = _generate_review_id(author, content, date_str)
+                # 네이버 리뷰 ID 추출 (답글 버튼 URL에서)
+                naver_review_id = _extract_naver_review_id(item)
+                if naver_review_id:
+                    platform_review_id = naver_review_id
+                else:
+                    # 답글 버튼이 없는 경우 해시 기반 ID 폴백
+                    platform_review_id = _generate_review_id(author, content, date_str)
+                    logger.warning(f"답글 버튼 미발견, 해시 ID 사용: {platform_review_id}")
 
                 if content:  # 내용이 있는 리뷰만 수집
                     reviews.append({

@@ -1,6 +1,6 @@
-사업주 페이지(https://pcmap.place.naver.com/hospital/{place_id}/review/visitor)에 리뷰 리스트의 각 리뷰에는 답글 button이 있고 
+사업주 페이지(https://pcmap.place.naver.com/hospital/{place_id}/review/visitor)에 navermap_review_area_biz.html의 각 리뷰에는 답글 버튼이 있고 
 
-답글 버튼 셀렉터: 
+첫번째 리뷰에 대한 답글 버튼 셀렉터: 
 #_review_list > li:nth-child(1) > div.pui__sRNfrm > div > a:nth-child(1)
 
 답글 버튼 outerHTML

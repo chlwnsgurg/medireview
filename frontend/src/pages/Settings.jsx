@@ -64,7 +64,7 @@ export default function Settings() {
             name="name"
             value={form.name}
             onChange={handleChange}
-            placeholder="예: 서울이비인후과"
+            placeholder="예: 장생한의원"
             required
             className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
