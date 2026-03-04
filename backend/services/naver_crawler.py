@@ -209,14 +209,18 @@ def fetch_naver_reviews(place_id: str, max_pages: int = 10) -> list[dict]:
                 img_elements = item.select("div.pui__MJi___ img")
                 image_urls = [img.get("src", "") for img in img_elements if img.get("src")]
 
-                # 네이버 리뷰 ID 추출 (답글 버튼 URL에서)
+                # 네이버 리뷰 ID 추출 (결제정보 버튼 URL에서)
                 naver_review_id = _extract_naver_review_id(item)
                 if naver_review_id:
                     platform_review_id = naver_review_id
                 else:
-                    # 답글 버튼이 없는 경우 해시 기반 ID 폴백
+                    # 결제정보 버튼이 없는 경우 해시 기반 ID 폴백
                     platform_review_id = _generate_review_id(author, content, date_str)
-                    logger.warning(f"답글 버튼 미발견, 해시 ID 사용: {platform_review_id}")
+                    logger.warning(f"결제정보 버튼 미발견, 해시 ID 사용: {platform_review_id}")
+
+                # 답변 여부 판별: 수정 버튼(editreply)이 있으면 이미 답변된 리뷰
+                edit_btn = item.select_one('a[data-pui-click-code="editreply"]')
+                is_replied = edit_btn is not None
 
                 if content:  # 내용이 있는 리뷰만 수집
                     reviews.append({
@@ -228,6 +232,7 @@ def fetch_naver_reviews(place_id: str, max_pages: int = 10) -> list[dict]:
                         "content": content,
                         "image_urls": image_urls,
                         "reviewed_at": reviewed_at,
+                        "is_replied": is_replied,
                     })
 
             except Exception as e:

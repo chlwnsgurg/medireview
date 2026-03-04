@@ -47,6 +47,7 @@ def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int
             content=r.get("content", ""),
             image_urls=json.dumps(r.get("image_urls", []), ensure_ascii=False),
             reviewed_at=r.get("reviewed_at"),
+            is_replied=r.get("is_replied", False),
         )
         db.add(review)
         db.flush()  # ID 할당을 위해 flush
