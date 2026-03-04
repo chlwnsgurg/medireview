@@ -102,17 +102,17 @@ def _generate_review_id(author: str, content: str, date_str: str) -> str:
 
 
 def _extract_naver_review_id(item) -> str | None:
-    """답글 버튼 URL에서 네이버 리뷰 ID를 추출합니다.
+    """결제정보 버튼 URL에서 네이버 리뷰 ID를 추출합니다.
     
-    답글 버튼 href 예시:
-    https://new-m.smartplace.naver.com/bizes/place-id/{place_id}/reviews/{review_id}?...
+    결제정보 버튼 href 예시:
+    https://m.place.naver.com/my/review/{review_id}/paymentInfo
     """
     import re
     try:
-        reply_link = item.select_one('a[data-pui-click-code="reply"]')
-        if reply_link and reply_link.get("href"):
-            href = reply_link["href"]
-            match = re.search(r'/reviews/([a-f0-9]+)', href)
+        payment_link = item.select_one('a[data-pui-click-code="paymentinfobutton"]')
+        if payment_link and payment_link.get("href"):
+            href = payment_link["href"]
+            match = re.search(r'/review/([a-f0-9]+)/paymentInfo', href)
             if match:
                 return match.group(1)
     except Exception:

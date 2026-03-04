@@ -68,12 +68,14 @@ class Alert(Base):
     id = Column(Integer, primary_key=True, index=True)
     hospital_id = Column(Integer, ForeignKey("hospitals.id"), nullable=False)
     review_id = Column(Integer, ForeignKey("reviews.id"), nullable=False)
-    type = Column(String(30), default="low_rating")
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=True)  # 승인 대기 댓글
+    type = Column(String(30), default="low_rating")  # low_rating | automation_held | approval_needed
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     hospital = relationship("Hospital", back_populates="alerts")
     review = relationship("Review", back_populates="alerts")
+    comment = relationship("Comment")
 
 
 class AutomationRule(Base):
@@ -92,3 +94,20 @@ class AutomationRule(Base):
     @property
     def hold_keyword_list(self):
         return json.loads(self.hold_keywords) if self.hold_keywords else []
+
+
+class AutomationLog(Base):
+    __tablename__ = "automation_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    hospital_id = Column(Integer, ForeignKey("hospitals.id"), nullable=False)
+    review_id = Column(Integer, ForeignKey("reviews.id"), nullable=False)
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=True)
+    action = Column(String(30), nullable=False)  # auto_reply | held | approval_needed
+    status = Column(String(30), nullable=False)   # posted | pending_approval | held | approved | failed
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    hospital = relationship("Hospital")
+    review = relationship("Review")
+    comment = relationship("Comment")

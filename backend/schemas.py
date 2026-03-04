@@ -84,6 +84,7 @@ class AlertOut(BaseModel):
     id: int
     hospital_id: int
     review_id: int
+    comment_id: Optional[int] = None
     type: str
     is_read: bool
     created_at: datetime
@@ -132,3 +133,19 @@ class PaginatedReviews(BaseModel):
     page: int
     size: int
     items: list[ReviewOut]
+
+
+# ── AutomationLog ─────────────────────────────────────
+
+class AutomationLogOut(BaseModel):
+    id: int
+    hospital_id: int
+    review_id: int
+    comment_id: Optional[int] = None
+    action: str
+    status: str
+    reason: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

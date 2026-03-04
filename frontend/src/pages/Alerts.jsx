@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAlerts, markAlertRead } from '../api/client';
+import { getAlerts, markAlertRead, approveAlert } from '../api/client';
+
+const ALERT_LABELS = {
+  low_rating: '⚠️ 저평점 리뷰가 등록되었습니다',
+  automation_held: '🚫 자동 대응이 보류되었습니다 (키워드 감지)',
+  approval_needed: '⏳ AI 댓글이 생성되었습니다 — 승인이 필요합니다',
+};
 
 export default function Alerts() {
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all | unread | read
+  const [approving, setApproving] = useState(null);
 
   useEffect(() => {
     getAlerts()
@@ -23,6 +30,23 @@ export default function Alerts() {
       );
     } catch (err) {
       console.error('읽음 처리 실패:', err);
+    }
+  };
+
+  const handleApprove = async (e, alertId) => {
+    e.stopPropagation();
+    setApproving(alertId);
+    try {
+      await approveAlert(alertId);
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.id === alertId ? { ...a, is_read: true, type: 'approved' } : a
+        )
+      );
+    } catch (err) {
+      alert(err.response?.data?.detail || '승인 실패');
+    } finally {
+      setApproving(null);
     }
   };
 
@@ -88,28 +112,43 @@ export default function Alerts() {
               className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
                 a.is_read
                   ? 'bg-white border-gray-200'
-                  : 'bg-red-50 border-red-200'
+                  : a.type === 'approval_needed'
+                    ? 'bg-yellow-50 border-yellow-200'
+                    : 'bg-red-50 border-red-200'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {!a.is_read && (
-                    <span className="w-2.5 h-2.5 bg-red-500 rounded-full flex-shrink-0" />
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                      a.type === 'approval_needed' ? 'bg-yellow-500' : 'bg-red-500'
+                    }`} />
                   )}
                   <div>
                     <p className={`text-sm font-medium ${a.is_read ? 'text-gray-600' : 'text-gray-800'}`}>
-                      {a.type === 'low_rating'
-                        ? '⚠️ 저평점 리뷰가 등록되었습니다'
-                        : '알림'}
+                      {a.type === 'approved'
+                        ? '✅ 승인 완료 — 댓글이 등록되었습니다'
+                        : ALERT_LABELS[a.type] || '알림'}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                       리뷰 #{a.review_id} · {new Date(a.created_at).toLocaleString('ko-KR')}
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-indigo-500 hover:text-indigo-700">
-                  리뷰 보기 →
-                </span>
+                <div className="flex items-center gap-2">
+                  {a.type === 'approval_needed' && !a.is_read && (
+                    <button
+                      onClick={(e) => handleApprove(e, a.id)}
+                      disabled={approving === a.id}
+                      className="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {approving === a.id ? '처리중...' : '승인'}
+                    </button>
+                  )}
+                  <span className="text-xs text-indigo-500 hover:text-indigo-700">
+                    리뷰 보기 →
+                  </span>
+                </div>
               </div>
             </div>
           ))}

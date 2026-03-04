@@ -27,6 +27,7 @@ export const postComment = (reviewId, commentId) =>
 // ── Alerts ──────────────────────────────
 export const getAlerts = () => client.get('/alerts');
 export const markAlertRead = (id) => client.patch(`/alerts/${id}/read`);
+export const approveAlert = (id) => client.post(`/alerts/${id}/approve`);
 export const getUnreadCount = () => client.get('/alerts/unread-count');
 
 // ── Automation ──────────────────────────

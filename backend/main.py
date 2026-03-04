@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import Base, engine
-from routers import hospital, reviews, comments, alerts
+from routers import hospital, reviews, comments, alerts, automation
 from scheduler import start_scheduler, stop_scheduler
 
 
@@ -38,6 +38,7 @@ app.include_router(hospital.router)
 app.include_router(reviews.router)
 app.include_router(comments.router)
 app.include_router(alerts.router)
+app.include_router(automation.router)
 
 
 @app.get("/api/health")

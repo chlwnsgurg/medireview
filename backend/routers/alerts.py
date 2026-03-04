@@ -1,6 +1,6 @@
 """
 알림 API 라우터
-저평점 리뷰 알림 조회, 읽음 처리, 미읽음 수 조회
+저평점 리뷰 알림 조회, 읽음 처리, 미읽음 수 조회, 승인 처리
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -33,6 +33,18 @@ def mark_read(alert_id: int, db: Session = Depends(get_db)):
     alert.is_read = True
     db.commit()
     return {"message": "읽음 처리 완료"}
+
+
+@router.post("/{alert_id}/approve")
+def approve_alert(alert_id: int, db: Session = Depends(get_db)):
+    """승인 대기 알림 → 댓글 승인 및 네이버 등록"""
+    from services.automation_service import approve_comment
+
+    result = approve_comment(db, alert_id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+
+    return result
 
 
 @router.get("/unread-count")
