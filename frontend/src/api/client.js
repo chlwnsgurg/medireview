@@ -21,6 +21,8 @@ export const generateComments = (reviewId) =>
   client.post(`/reviews/${reviewId}/generate-comments`);
 export const getComments = (reviewId) =>
   client.get(`/reviews/${reviewId}/comments`);
+export const updateComment = (reviewId, commentId, content) =>
+  client.patch(`/reviews/${reviewId}/comments/${commentId}`, { content });
 export const postComment = (reviewId, commentId) =>
   client.post(`/reviews/${reviewId}/post-comment`, { comment_id: commentId });
 

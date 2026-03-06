@@ -222,6 +222,13 @@ def fetch_naver_reviews(place_id: str, max_pages: int = 10) -> list[dict]:
                 edit_btn = item.select_one('a[data-pui-click-code="editreply"]')
                 is_replied = edit_btn is not None
 
+                # 기존 답글 내용 추출 (답변된 리뷰의 경우)
+                reply_content = ""
+                if is_replied:
+                    reply_area = item.select_one("div.pui__J0tczd span")
+                    if reply_area:
+                        reply_content = reply_area.text.strip()
+
                 if content:  # 내용이 있는 리뷰만 수집
                     reviews.append({
                         "platform": "naver",
@@ -233,6 +240,7 @@ def fetch_naver_reviews(place_id: str, max_pages: int = 10) -> list[dict]:
                         "image_urls": image_urls,
                         "reviewed_at": reviewed_at,
                         "is_replied": is_replied,
+                        "reply_content": reply_content,
                     })
 
             except Exception as e:

@@ -27,8 +27,6 @@ def reset_reviews():
         print(f"  - 리뷰: {review_count}건")
         print(f"  - 댓글: {comment_count}건")
         print(f"  - 알림: {alert_count}건")
-        print()
-        print("다음 크롤링 시 naver_review_id가 포함된 리뷰가 새로 수집됩니다.")
 
     except Exception as e:
         db.rollback()

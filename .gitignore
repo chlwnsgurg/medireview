@@ -63,3 +63,8 @@ Thumbs.db
 *.pyd
 *.pem
 *.key
+
+# Database files
+*.sqlite3
+*.db
+*.sql

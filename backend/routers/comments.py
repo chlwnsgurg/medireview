@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Review, Comment, Hospital
-from schemas import CommentOut, CommentPostRequest
+from schemas import CommentOut, CommentPostRequest, CommentUpdateRequest
 from services.gemini import generate_comments
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,24 @@ def get_comments(review_id: int, db: Session = Depends(get_db)):
     return db.query(Comment).filter(Comment.review_id == review_id).all()
 
 
+@router.patch("/{review_id}/comments/{comment_id}", response_model=CommentOut)
+def update_comment(
+    review_id: int, comment_id: int, body: CommentUpdateRequest, db: Session = Depends(get_db)
+):
+    """AI 생성 댓글 내용 수정"""
+    comment = db.query(Comment).filter(
+        Comment.id == comment_id, Comment.review_id == review_id
+    ).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="댓글을 찾을 수 없습니다.")
+    if comment.is_posted:
+        raise HTTPException(status_code=400, detail="이미 등록된 댓글은 수정할 수 없습니다.")
+    comment.content = body.content
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
 @router.post("/{review_id}/post-comment")
 def post_comment(review_id: int, body: CommentPostRequest, db: Session = Depends(get_db)):
     """선택한 댓글을 네이버에 자동 등록"""
@@ -110,6 +128,7 @@ def post_comment(review_id: int, body: CommentPostRequest, db: Session = Depends
     comment.is_selected = True
     comment.is_posted = True
     review.is_replied = True
+    review.reply_content = comment.content
     db.commit()
 
     return {"message": "댓글이 성공적으로 등록되었습니다.", "comment_id": comment.id}

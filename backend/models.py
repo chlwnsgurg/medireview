@@ -36,6 +36,7 @@ class Review(Base):
     image_urls = Column(Text, default="[]")  # JSON array
     reviewed_at = Column(DateTime)
     is_replied = Column(Boolean, default=False)
+    reply_content = Column(Text, default="")  # 등록된 답글 내용
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

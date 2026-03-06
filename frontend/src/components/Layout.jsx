@@ -57,7 +57,7 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-8 flex flex-col">
           <Outlet />
         </main>
       </div>

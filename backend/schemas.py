@@ -49,6 +49,7 @@ class ReviewOut(ReviewBase):
     id: int
     hospital_id: int
     is_replied: bool
+    reply_content: Optional[str] = ""
     created_at: datetime
     updated_at: datetime
 
@@ -72,6 +73,10 @@ class CommentOut(CommentBase):
 
     class Config:
         from_attributes = True
+
+
+class CommentUpdateRequest(BaseModel):
+    content: str
 
 
 class CommentPostRequest(BaseModel):
