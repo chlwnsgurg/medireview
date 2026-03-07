@@ -19,7 +19,7 @@ from models import (
     Hospital,
     Review,
 )
-from services.gemini import generate_comments
+from services.gemini import classify_review, generate_comments
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +55,24 @@ def process_auto_reply(db: Session, hospital: Hospital, review: Review) -> None:
             logger.info(f"자동 대응 보류: 리뷰#{review.id} (키워드: {keyword})")
             return
 
-    # 3. AI 댓글 생성
+    # 3. 리뷰 유형 분류
+    if not review.review_type:
+        classification = classify_review(
+            review_content=review.content or "",
+            review_rating=review.rating,
+        )
+        review.review_type = classification["type"]
+        review.review_type_reason = classification["reason"]
+        db.flush()
+
+    # 4. AI 댓글 생성
     raw_comments = generate_comments(
         review_content=review.content or "",
         review_rating=review.rating,
+        review_type=review.review_type,
         hospital_name=hospital.name,
         tone_style=hospital.tone_style,
+        reviewer_name=review.author or "",
     )
     if not raw_comments:
         _create_log(db, hospital.id, review.id, None,
@@ -69,8 +81,13 @@ def process_auto_reply(db: Session, hospital: Hospital, review: Review) -> None:
         logger.error(f"자동 대응 실패: 리뷰#{review.id} — AI 생성 실패")
         return
 
-    # 설정된 스타일의 댓글 선택
-    target_style = rule.auto_reply_style or "empathy"
+    # 유형별 기본 변형 선택
+    variant_map = {
+        "positive": rule.auto_reply_positive_variant or "pos_thanks",
+        "complaint": rule.auto_reply_complaint_variant or "comp_empathy",
+        "claim": rule.auto_reply_claim_variant or "clm_apology",
+    }
+    target_style = variant_map.get(review.review_type, raw_comments[0]["style"])
     selected = None
     for c in raw_comments:
         if c["style"] == target_style:

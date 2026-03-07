@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Review, Hospital
-from schemas import ReviewOut, ReviewStats, PaginatedReviews
+from schemas import ReviewOut, ReviewStats, PaginatedReviews, ReviewTypeUpdate
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
@@ -106,6 +106,24 @@ def get_review(review_id: int, db: Session = Depends(get_db)):
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="리뷰를 찾을 수 없습니다.")
+    return review
+
+
+@router.patch("/{review_id}/review-type", response_model=ReviewOut)
+def update_review_type(review_id: int, body: ReviewTypeUpdate, db: Session = Depends(get_db)):
+    """리뷰 유형 수동 변경"""
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="리뷰를 찾을 수 없습니다.")
+
+    valid_types = {"positive", "complaint", "claim"}
+    if body.review_type not in valid_types:
+        raise HTTPException(status_code=400, detail=f"유효하지 않은 유형입니다. ({', '.join(valid_types)})")
+
+    review.review_type = body.review_type
+    review.review_type_reason = "관리자 수동 변경"
+    db.commit()
+    db.refresh(review)
     return review
 
 

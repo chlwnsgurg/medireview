@@ -2,18 +2,42 @@ import { useEffect, useState } from 'react';
 import { getAutomationRules, updateAutomationRules, getAutomationLogs } from '../api/client';
 
 const STATUS_MAP = {
-  posted: { label: '자동 등록 완료', icon: '✅', color: 'text-green-600' },
-  pending_approval: { label: '승인 대기', icon: '⏳', color: 'text-yellow-600' },
-  held: { label: '보류', icon: '🚫', color: 'text-red-600' },
-  approved: { label: '승인 후 등록', icon: '✅', color: 'text-green-600' },
-  failed: { label: '실패', icon: '❌', color: 'text-red-500' },
+  posted: { label: '자동 등록 완료', icon: '>', color: 'text-green-600' },
+  pending_approval: { label: '승인 대기', icon: '-', color: 'text-yellow-600' },
+  held: { label: '보류', icon: 'x', color: 'text-red-600' },
+  approved: { label: '승인 후 등록', icon: '>', color: 'text-green-600' },
+  failed: { label: '실패', icon: '!', color: 'text-red-500' },
 };
 
-const STYLE_OPTIONS = [
-  { value: 'empathy', label: '공감 및 감사형' },
-  { value: 'guidance', label: '안내 및 개선 약속형' },
-  { value: 'apology', label: '사과 및 해명형' },
-];
+const VARIANT_OPTIONS = {
+  positive: {
+    label: '호감 리뷰',
+    color: 'text-green-700',
+    options: [
+      { value: 'pos_thanks', label: '감사 중심' },
+      { value: 'pos_highlight', label: '칭찬 강조' },
+      { value: 'pos_revisit', label: '재방문 유도' },
+    ],
+  },
+  complaint: {
+    label: '컴플레인',
+    color: 'text-orange-700',
+    options: [
+      { value: 'comp_empathy', label: '공감 중심' },
+      { value: 'comp_explain', label: '해명 중심' },
+      { value: 'comp_improve', label: '개선 약속' },
+    ],
+  },
+  claim: {
+    label: '클레임',
+    color: 'text-red-700',
+    options: [
+      { value: 'clm_apology', label: '사과 중심' },
+      { value: 'clm_cause', label: '원인 설명' },
+      { value: 'clm_prevent', label: '개선 대책' },
+    ],
+  },
+};
 
 export default function AutomationSettings() {
   const [rule, setRule] = useState(null);
@@ -46,7 +70,9 @@ export default function AutomationSettings() {
     try {
       await updateAutomationRules({
         is_enabled: rule.is_enabled,
-        auto_reply_style: rule.auto_reply_style,
+        auto_reply_positive_variant: rule.auto_reply_positive_variant,
+        auto_reply_complaint_variant: rule.auto_reply_complaint_variant,
+        auto_reply_claim_variant: rule.auto_reply_claim_variant,
         hold_keywords: JSON.stringify(rule.hold_keywords),
         require_approval: rule.require_approval,
       });
@@ -97,22 +123,28 @@ export default function AutomationSettings() {
           </button>
         </div>
 
-        {/* 기본 댓글 스타일 */}
+        {/* 유형별 기본 변형 선택 */}
         <div>
-          <p className="font-medium text-gray-800 mb-3">기본 댓글 스타일</p>
-          <div className="space-y-2">
-            {STYLE_OPTIONS.map((opt) => (
-              <label key={opt.value} className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="style"
-                  checked={rule.auto_reply_style === opt.value}
-                  onChange={() => setRule({ ...rule, auto_reply_style: opt.value })}
-                  className="w-4 h-4 text-indigo-600"
-                />
-                <span className="text-sm text-gray-700">{opt.label}</span>
-              </label>
-            ))}
+          <p className="font-medium text-gray-800 mb-1">유형별 기본 답변 변형</p>
+          <p className="text-sm text-gray-400 mb-4">리뷰 유형에 따라 자동 선택되는 답변 변형을 설정합니다</p>
+          <div className="space-y-4">
+            {Object.entries(VARIANT_OPTIONS).map(([type, config]) => {
+              const fieldName = `auto_reply_${type}_variant`;
+              return (
+                <div key={type} className="flex items-center gap-4">
+                  <span className={`text-sm font-medium w-24 ${config.color}`}>{config.label}</span>
+                  <select
+                    value={rule[fieldName] || config.options[0].value}
+                    onChange={(e) => setRule({ ...rule, [fieldName]: e.target.value })}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    {config.options.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -142,7 +174,7 @@ export default function AutomationSettings() {
             {rule.hold_keywords.map((kw) => (
               <span key={kw} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700">
                 {kw}
-                <button onClick={() => removeKeyword(kw)} className="text-gray-400 hover:text-red-500 ml-1">✕</button>
+                <button onClick={() => removeKeyword(kw)} className="text-gray-400 hover:text-red-500 ml-1">x</button>
               </span>
             ))}
           </div>
@@ -183,11 +215,11 @@ export default function AutomationSettings() {
         ) : (
           <div className="space-y-3">
             {logs.map((log) => {
-              const st = STATUS_MAP[log.status] || { label: log.status, icon: '•', color: 'text-gray-500' };
+              const st = STATUS_MAP[log.status] || { label: log.status, icon: '-', color: 'text-gray-500' };
               return (
                 <div key={log.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <span className="text-lg">{st.icon}</span>
+                    <span className={`text-sm font-bold ${st.color}`}>[{st.icon}]</span>
                     <div>
                       <p className={`text-sm font-medium ${st.color}`}>{st.label}</p>
                       <p className="text-xs text-gray-400">
