@@ -38,5 +38,6 @@ export const getUnreadCount = () => client.get('/alerts/unread-count');
 export const getAutomationRules = () => client.get('/automation/rules');
 export const updateAutomationRules = (data) => client.put('/automation/rules', data);
 export const getAutomationLogs = () => client.get('/automation/logs');
+export const batchAutoReply = () => client.post('/automation/batch-auto-reply');
 
 export default client;

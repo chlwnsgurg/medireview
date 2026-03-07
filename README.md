@@ -178,7 +178,8 @@ npm run dev
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/api/automation/rules` | 자동화 규칙 조회 |
-| PUT | `/api/automation/rules` | 자동화 규칙 수정 |
+| PUT | `/api/automation/rules` | 자동화 규칙 수정 (활성화 시 미답변 소급 처리) |
+| POST | `/api/automation/batch-auto-reply` | 미답변 리뷰 일괄 자동 대응 (최대 100건) |
 | GET | `/api/automation/logs` | 자동화 로그 조회 |
 
 ---
