@@ -1,6 +1,6 @@
 """
 댓글 API 라우터
-AI 댓글 생성, 조회, 네이버 댓글 등록
+AI 리뷰 분류 + 유형별 댓글 생성, 조회, 네이버 댓글 등록
 """
 import logging
 
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Review, Comment, Hospital
-from schemas import CommentOut, CommentPostRequest, CommentUpdateRequest
+from schemas import CommentOut, CommentPostRequest, CommentUpdateRequest, GenerateCommentsResponse
 from services.gemini import generate_comments
 
 logger = logging.getLogger(__name__)
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/reviews", tags=["comments"])
 
 
-@router.post("/{review_id}/generate-comments", response_model=list[CommentOut])
+@router.post("/{review_id}/generate-comments", response_model=GenerateCommentsResponse)
 def api_generate_comments(review_id: int, db: Session = Depends(get_db)):
-    """리뷰에 대한 AI 댓글 3종 생성"""
+    """리뷰 유형 분류 후 맞춤 AI 댓글 3종 생성"""
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="리뷰를 찾을 수 없습니다.")
@@ -32,12 +32,17 @@ def api_generate_comments(review_id: int, db: Session = Depends(get_db)):
     db.query(Comment).filter(Comment.review_id == review_id).delete()
     db.commit()
 
-    # Gemini로 댓글 생성
+    if not review.review_type:
+        raise HTTPException(status_code=400, detail="리뷰 유형이 분류되지 않았습니다. 리뷰 동기화를 먼저 실행해주세요.")
+
+    # 유형별 맞춤 댓글 생성
     raw_comments = generate_comments(
         review_content=review.content or "",
         review_rating=review.rating,
+        review_type=review.review_type,
         hospital_name=hospital_name,
         tone_style=tone_style,
+        reviewer_name=review.author or "",
     )
 
     if not raw_comments:
@@ -58,7 +63,11 @@ def api_generate_comments(review_id: int, db: Session = Depends(get_db)):
     for c in saved:
         db.refresh(c)
 
-    return saved
+    return GenerateCommentsResponse(
+        review_type=review.review_type,
+        review_type_reason=review.review_type_reason or "",
+        comments=[CommentOut.model_validate(c) for c in saved],
+    )
 
 
 @router.get("/{review_id}/comments", response_model=list[CommentOut])

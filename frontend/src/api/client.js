@@ -15,6 +15,8 @@ export const getReviews = (params) => client.get('/reviews', { params });
 export const getReview = (id) => client.get(`/reviews/${id}`);
 export const getReviewStats = () => client.get('/reviews/stats');
 export const syncReviews = () => client.post('/reviews/sync');
+export const updateReviewType = (id, reviewType) =>
+  client.patch(`/reviews/${id}/review-type`, { review_type: reviewType });
 
 // ── Comments ────────────────────────────
 export const generateComments = (reviewId) =>
@@ -36,5 +38,6 @@ export const getUnreadCount = () => client.get('/alerts/unread-count');
 export const getAutomationRules = () => client.get('/automation/rules');
 export const updateAutomationRules = (data) => client.put('/automation/rules', data);
 export const getAutomationLogs = () => client.get('/automation/logs');
+export const batchAutoReply = () => client.post('/automation/batch-auto-reply');
 
 export default client;

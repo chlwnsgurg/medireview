@@ -11,6 +11,7 @@ from models import Hospital, Review
 from services.naver_crawler import fetch_naver_reviews
 from services.alert_service import check_and_create_alert
 from services.automation_service import process_auto_reply
+from services.gemini import classify_review
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int:
     """
     크롤링된 리뷰를 DB에 저장합니다. (중복 제외)
-    저평점 리뷰는 알림을 자동 생성합니다.
+    AI 분류 후 반감 리뷰(컴플레인/클레임)는 알림을 자동 생성합니다.
     자동화가 활성화되어 있으면 자동 대응을 실행합니다.
     Returns: 신규 저장된 리뷰 수
     """
@@ -53,7 +54,22 @@ def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int
         db.add(review)
         db.flush()  # ID 할당을 위해 flush
 
-        # 저평점 알림 체크
+        # AI 리뷰 유형 분류 (신규 리뷰만, 이미 분류된 리뷰는 스킵)
+        if not review.review_type:
+            try:
+                classification = classify_review(
+                    review.content or "", review.rating
+                )
+                review.review_type = classification["type"]
+                review.review_type_reason = classification["reason"]
+                db.flush()
+                logger.info(
+                    f"리뷰#{review.id} 분류 완료: {review.review_type} ({review.review_type_reason})"
+                )
+            except Exception as e:
+                logger.error(f"리뷰#{review.id} 분류 실패: {e}")
+
+        # 반감 리뷰 알림 체크 (컴플레인/클레임)
         check_and_create_alert(db, review)
 
         # 자동화 대응 실행

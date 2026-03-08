@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { getAlerts, markAlertRead, approveAlert } from '../api/client';
 
 const ALERT_LABELS = {
-  low_rating: '⚠️ 저평점 리뷰가 등록되었습니다',
+  complaint: '🟠 컴플레인 리뷰가 감지되었습니다',
+  claim: '🔴 클레임 리뷰가 감지되었습니다',
+  low_rating: '⚠️ 저평점 리뷰가 등록되었습니다',  // legacy
   automation_held: '🚫 자동 대응이 보류되었습니다 (키워드 감지)',
   approval_needed: '⏳ AI 댓글이 생성되었습니다 — 승인이 필요합니다',
 };
@@ -114,14 +116,18 @@ export default function Alerts() {
                   ? 'bg-white border-gray-200'
                   : a.type === 'approval_needed'
                     ? 'bg-yellow-50 border-yellow-200'
-                    : 'bg-red-50 border-red-200'
+                    : a.type === 'complaint'
+                      ? 'bg-orange-50 border-orange-200'
+                      : 'bg-red-50 border-red-200'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {!a.is_read && (
                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      a.type === 'approval_needed' ? 'bg-yellow-500' : 'bg-red-500'
+                      a.type === 'approval_needed' ? 'bg-yellow-500'
+                        : a.type === 'complaint' ? 'bg-orange-500'
+                        : 'bg-red-500'
                     }`} />
                   )}
                   <div>

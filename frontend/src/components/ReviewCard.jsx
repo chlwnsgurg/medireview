@@ -2,12 +2,20 @@ import { useNavigate } from 'react-router-dom';
 import StarRating from './StarRating';
 import PlatformBadge from './PlatformBadge';
 
+const REVIEW_TYPE_BADGE = {
+  positive: { label: '호감', color: 'text-green-600 bg-green-50' },
+  complaint: { label: '컴플레인', color: 'text-orange-600 bg-orange-50' },
+  claim: { label: '클레임', color: 'text-red-600 bg-red-50' },
+};
+
 export default function ReviewCard({ review }) {
   const navigate = useNavigate();
 
   const formattedDate = review.reviewed_at
     ? new Date(review.reviewed_at).toLocaleDateString('ko-KR')
     : '';
+
+  const typeBadge = REVIEW_TYPE_BADGE[review.review_type] || null;
 
   return (
     <div
@@ -19,6 +27,11 @@ export default function ReviewCard({ review }) {
         <div className="flex items-center gap-3">
           <PlatformBadge platform={review.platform} />
           <StarRating rating={review.rating} scale={review.rating_scale} />
+          {typeBadge && (
+            <span className={`text-xs px-2 py-0.5 rounded ${typeBadge.color}`}>
+              {typeBadge.label}
+            </span>
+          )}
         </div>
         <span className="text-xs text-gray-400">{formattedDate}</span>
       </div>

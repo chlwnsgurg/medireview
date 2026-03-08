@@ -59,8 +59,10 @@ def process_auto_reply(db: Session, hospital: Hospital, review: Review) -> None:
     raw_comments = generate_comments(
         review_content=review.content or "",
         review_rating=review.rating,
+        review_type=review.review_type,
         hospital_name=hospital.name,
         tone_style=hospital.tone_style,
+        reviewer_name=review.author or "",
     )
     if not raw_comments:
         _create_log(db, hospital.id, review.id, None,
@@ -69,8 +71,13 @@ def process_auto_reply(db: Session, hospital: Hospital, review: Review) -> None:
         logger.error(f"자동 대응 실패: 리뷰#{review.id} — AI 생성 실패")
         return
 
-    # 설정된 스타일의 댓글 선택
-    target_style = rule.auto_reply_style or "empathy"
+    # 유형별 기본 변형 선택
+    variant_map = {
+        "positive": rule.auto_reply_positive_variant or "pos_thanks",
+        "complaint": rule.auto_reply_complaint_variant or "comp_empathy",
+        "claim": rule.auto_reply_claim_variant or "clm_apology",
+    }
+    target_style = variant_map.get(review.review_type, raw_comments[0]["style"])
     selected = None
     for c in raw_comments:
         if c["style"] == target_style:
@@ -181,6 +188,81 @@ def approve_comment(db: Session, alert_id: int) -> dict:
         return {"success": True, "message": "댓글이 승인되어 네이버에 등록되었습니다."}
     else:
         return {"success": False, "message": "네이버 댓글 등록에 실패했습니다."}
+
+
+def batch_auto_reply(db: Session, limit: int = 100) -> dict:
+    """
+    기존 미답변 리뷰를 일괄 자동 대응합니다.
+
+    Args:
+        db: DB 세션
+        limit: 한 번에 처리할 최대 건수 (기본 100)
+
+    Returns:
+        처리 결과 dict (total, success, failed, held, pending)
+    """
+    hospital = db.query(Hospital).first()
+    if not hospital:
+        return {"total": 0, "success": 0, "failed": 0, "held": 0, "pending": 0, "message": "병원 정보가 없습니다."}
+
+    rule = (
+        db.query(AutomationRule)
+        .filter(AutomationRule.hospital_id == hospital.id)
+        .first()
+    )
+    if not rule or not rule.is_enabled:
+        return {"total": 0, "success": 0, "failed": 0, "held": 0, "pending": 0, "message": "자동화 규칙이 비활성 상태입니다."}
+
+    # 미답변 리뷰 전체 조회 (네이버에 등록되지 않은 모든 리뷰)
+    # held / pending_approval 상태인 리뷰는 재처리 시 중복 발생하므로 제외
+    skip_statuses = {"held", "pending_approval", "posted", "approved"}
+    skip_review_ids = {
+        row.review_id
+        for row in db.query(AutomationLog.review_id, AutomationLog.status).all()
+        if row.status in skip_statuses
+    }
+    unreplied_reviews = (
+        db.query(Review)
+        .filter(
+            Review.hospital_id == hospital.id,
+            Review.is_replied == False,
+        )
+        .order_by(Review.reviewed_at.asc())
+        .all()
+    )
+    # 재처리 안전한 리뷰만 남김 (로그 없음 or 마지막 상태가 failed인 경우)
+    unreplied_reviews = [r for r in unreplied_reviews if r.id not in skip_review_ids][:limit]
+
+    result = {"total": len(unreplied_reviews), "success": 0, "failed": 0, "held": 0, "pending": 0}
+
+    for review in unreplied_reviews:
+        try:
+            process_auto_reply(db, hospital, review)
+            # 결과 판별: 마지막 로그 확인
+            last_log = (
+                db.query(AutomationLog)
+                .filter(AutomationLog.review_id == review.id)
+                .order_by(AutomationLog.created_at.desc())
+                .first()
+            )
+            if last_log:
+                if last_log.status == "posted":
+                    result["success"] += 1
+                elif last_log.status == "held":
+                    result["held"] += 1
+                elif last_log.status == "pending_approval":
+                    result["pending"] += 1
+                else:
+                    result["failed"] += 1
+            else:
+                result["failed"] += 1
+        except Exception as e:
+            logger.error(f"일괄 자동 대응 실패 (리뷰#{review.id}): {e}")
+            result["failed"] += 1
+
+    db.commit()
+    result["message"] = f"일괄 처리 완료: 총 {result['total']}건"
+    return result
 
 
 def _create_log(

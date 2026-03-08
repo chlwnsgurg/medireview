@@ -122,20 +122,13 @@ export default function Settings() {
         {/* 알림 기준 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            저평점 알림 기준 (5점 만점)
+            반감 리뷰 알림
           </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              name="alert_threshold"
-              value={form.alert_threshold}
-              onChange={handleChange}
-              min={1}
-              max={5}
-              className="w-20 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <span className="text-sm text-gray-500">점 이하 리뷰 시 알림</span>
-          </div>
+          <p className="text-sm text-gray-500">
+            리뷰 동기화 시 AI가 자동으로 리뷰 유형을 분류합니다.<br />
+            <span className="text-orange-500 font-medium">컴플레인</span> 또는{' '}
+            <span className="text-red-500 font-medium">클레임</span> 리뷰가 감지되면 알림이 생성됩니다.
+          </p>
         </div>
 
         {/* 저장 버튼 */}
