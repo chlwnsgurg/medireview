@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Review, Comment, Hospital
 from schemas import CommentOut, CommentPostRequest, CommentUpdateRequest, GenerateCommentsResponse
-from services.gemini import generate_comments
+from services.gemini import classify_review, generate_comments
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +32,17 @@ def api_generate_comments(review_id: int, db: Session = Depends(get_db)):
     db.query(Comment).filter(Comment.review_id == review_id).delete()
     db.commit()
 
+    # 1단계: 리뷰 유형 분류 (이미 분류된 경우 재사용)
     if not review.review_type:
-        raise HTTPException(status_code=400, detail="리뷰 유형이 분류되지 않았습니다. 리뷰 동기화를 먼저 실행해주세요.")
+        classification = classify_review(
+            review_content=review.content or "",
+            review_rating=review.rating,
+        )
+        review.review_type = classification["type"]
+        review.review_type_reason = classification["reason"]
+        db.commit()
 
-    # 유형별 맞춤 댓글 생성
+    # 2단계: 유형별 맞춤 댓글 생성
     raw_comments = generate_comments(
         review_content=review.content or "",
         review_rating=review.rating,

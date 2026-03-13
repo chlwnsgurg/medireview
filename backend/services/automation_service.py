@@ -19,7 +19,7 @@ from models import (
     Hospital,
     Review,
 )
-from services.gemini import generate_comments
+from services.gemini import classify_review, generate_comments
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,17 @@ def process_auto_reply(db: Session, hospital: Hospital, review: Review) -> None:
             logger.info(f"자동 대응 보류: 리뷰#{review.id} (키워드: {keyword})")
             return
 
-    # 3. AI 댓글 생성
+    # 3. 리뷰 유형 분류
+    if not review.review_type:
+        classification = classify_review(
+            review_content=review.content or "",
+            review_rating=review.rating,
+        )
+        review.review_type = classification["type"]
+        review.review_type_reason = classification["reason"]
+        db.flush()
+
+    # 4. AI 댓글 생성
     raw_comments = generate_comments(
         review_content=review.content or "",
         review_rating=review.rating,
