@@ -22,14 +22,31 @@ class HospitalUpdate(BaseModel):
     naver_place_id: Optional[str] = None
     tone_style: Optional[str] = None
     alert_threshold: Optional[int] = None
+    kakao_notify_enabled: Optional[bool] = None
 
 
 class HospitalOut(HospitalBase):
     id: int
+    kakao_connected: bool = False
+    kakao_notify_enabled: bool = False
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_hospital(cls, hospital):
+        """Hospital 모델 → HospitalOut 변환 (kakao_connected 계산)"""
+        return cls(
+            id=hospital.id,
+            name=hospital.name,
+            naver_place_id=hospital.naver_place_id or "",
+            tone_style=hospital.tone_style or "polite",
+            alert_threshold=hospital.alert_threshold or 2,
+            kakao_connected=bool(hospital.kakao_access_token),
+            kakao_notify_enabled=hospital.kakao_notify_enabled or False,
+            created_at=hospital.created_at,
+        )
 
 
 # ── Review ────────────────────────────────────────────

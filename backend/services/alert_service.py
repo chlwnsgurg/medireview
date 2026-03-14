@@ -6,7 +6,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from models import Alert, Review
+from models import Alert, Hospital, Review
 
 logger = logging.getLogger(__name__)
 
@@ -54,4 +54,23 @@ def check_and_create_alert(db: Session, review: Review) -> Alert | None:
     logger.info(
         f"반감 리뷰 알림 생성: 리뷰#{review.id} ({label}, 별점 {review.rating}점)"
     )
+
+    # 카카오톡 알림 발송
+    _send_kakao_notification(db, review.hospital_id, alert_type, review)
+
     return alert
+
+
+def _send_kakao_notification(db: Session, hospital_id: int, alert_type: str, review: Review):
+    """카카오톡 알림 발송 (실패해도 인앱 알림에 영향 없음)"""
+    try:
+        from services.kakao_service import send_kakao_alert, build_alert_message
+
+        hospital = db.query(Hospital).filter(Hospital.id == hospital_id).first()
+        if not hospital or not hospital.kakao_notify_enabled:
+            return
+
+        title, message, link_path = build_alert_message(alert_type, review)
+        send_kakao_alert(db, hospital, title, message, link_path)
+    except Exception as e:
+        logger.warning(f"카카오톡 알림 발송 실패 (인앱 알림은 정상): {e}")

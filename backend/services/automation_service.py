@@ -51,7 +51,8 @@ def process_auto_reply(db: Session, hospital: Hospital, review: Review) -> None:
                         action="held", status="held",
                         reason=f"보류 키워드: {keyword}")
             _create_alert(db, hospital.id, review.id, None,
-                          alert_type="automation_held")
+                          alert_type="automation_held",
+                          reason=f"보류 키워드: {keyword}")
             logger.info(f"자동 대응 보류: 리뷰#{review.id} (키워드: {keyword})")
             return
 
@@ -303,8 +304,9 @@ def _create_alert(
     review_id: int,
     comment_id: int | None,
     alert_type: str,
+    reason: str = "",
 ) -> Alert:
-    """자동화 관련 알림 생성"""
+    """자동화 관련 알림 생성 + 카카오톡 발송"""
     alert = Alert(
         hospital_id=hospital_id,
         review_id=review_id,
@@ -312,4 +314,17 @@ def _create_alert(
         type=alert_type,
     )
     db.add(alert)
+
+    # 카카오톡 알림 발송
+    try:
+        from services.kakao_service import send_kakao_alert, build_alert_message
+
+        hospital = db.query(Hospital).filter(Hospital.id == hospital_id).first()
+        if hospital and hospital.kakao_notify_enabled:
+            review = db.query(Review).filter(Review.id == review_id).first()
+            title, msg, link_path = build_alert_message(alert_type, review, reason)
+            send_kakao_alert(db, hospital, title, msg, link_path)
+    except Exception as e:
+        logger.warning(f"카카오톡 알림 발송 실패 (인앱 알림은 정상): {e}")
+
     return alert

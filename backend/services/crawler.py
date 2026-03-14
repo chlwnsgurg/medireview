@@ -72,8 +72,6 @@ def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int
 
         saved += 1
 
-        saved += 1
-
     if saved > 0:
         db.commit()
 
