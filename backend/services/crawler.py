@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from models import Hospital, Review
 from services.naver_crawler import fetch_naver_reviews
 from services.alert_service import check_and_create_alert
-from services.automation_service import process_auto_reply
 from services.gemini import classify_review
 
 logger = logging.getLogger(__name__)
@@ -20,7 +19,6 @@ def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int
     """
     크롤링된 리뷰를 DB에 저장합니다. (중복 제외)
     AI 분류 후 반감 리뷰(컴플레인/클레임)는 알림을 자동 생성합니다.
-    자동화가 활성화되어 있으면 자동 대응을 실행합니다.
     Returns: 신규 저장된 리뷰 수
     """
     hospital = db.query(Hospital).filter(Hospital.id == hospital_id).first()
@@ -71,13 +69,6 @@ def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int
 
         # 반감 리뷰 알림 체크 (컴플레인/클레임)
         check_and_create_alert(db, review)
-
-        # 자동화 대응 실행
-        if hospital:
-            try:
-                process_auto_reply(db, hospital, review)
-            except Exception as e:
-                logger.error(f"자동 대응 실패 (리뷰#{review.id}): {e}")
 
         saved += 1
 

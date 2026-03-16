@@ -40,4 +40,8 @@ export const updateAutomationRules = (data) => client.put('/automation/rules', d
 export const getAutomationLogs = () => client.get('/automation/logs');
 export const batchAutoReply = () => client.post('/automation/batch-auto-reply');
 
+// ── Kakao ───────────────────────────────
+export const disconnectKakao = () => client.post('/kakao/disconnect');
+export const sendTestKakaoMessage = () => client.post('/kakao/test-message');
+
 export default client;

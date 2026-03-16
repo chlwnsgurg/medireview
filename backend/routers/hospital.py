@@ -8,16 +8,16 @@ from schemas import HospitalCreate, HospitalOut, HospitalUpdate
 router = APIRouter(prefix="/api/hospital", tags=["hospital"])
 
 
-@router.get("", response_model=HospitalOut)
+@router.get("")
 def get_hospital(db: Session = Depends(get_db)):
     """병원 정보 조회 (MVP: 단일 병원)"""
     hospital = db.query(Hospital).first()
     if not hospital:
         raise HTTPException(status_code=404, detail="병원 정보가 없습니다. 먼저 등록해주세요.")
-    return hospital
+    return HospitalOut.from_hospital(hospital)
 
 
-@router.post("", response_model=HospitalOut, status_code=201)
+@router.post("", status_code=201)
 def create_hospital(data: HospitalCreate, db: Session = Depends(get_db)):
     """병원 정보 최초 등록"""
     existing = db.query(Hospital).first()
@@ -34,10 +34,10 @@ def create_hospital(data: HospitalCreate, db: Session = Depends(get_db)):
     db.add(rule)
     db.commit()
 
-    return hospital
+    return HospitalOut.from_hospital(hospital)
 
 
-@router.put("", response_model=HospitalOut)
+@router.put("")
 def update_hospital(data: HospitalUpdate, db: Session = Depends(get_db)):
     """병원 정보 수정"""
     hospital = db.query(Hospital).first()
@@ -50,4 +50,4 @@ def update_hospital(data: HospitalUpdate, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(hospital)
-    return hospital
+    return HospitalOut.from_hospital(hospital)

@@ -17,6 +17,13 @@ class Hospital(Base):
     alert_threshold = Column(Integer, default=2)  # 기본 2점 이하 알림
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # 카카오 연동
+    kakao_access_token = Column(Text, nullable=True)         # 암호화된 액세스 토큰
+    kakao_refresh_token = Column(Text, nullable=True)        # 암호화된 리프레시 토큰
+    kakao_token_expires_at = Column(DateTime, nullable=True)  # 토큰 만료 시각
+    kakao_notify_enabled = Column(Boolean, default=False)     # 카카오톡 알림 활성화
+    kakao_user_id = Column(String(50), nullable=True)         # 카카오 사용자 ID
+
     reviews = relationship("Review", back_populates="hospital")
     alerts = relationship("Alert", back_populates="hospital")
     automation_rule = relationship("AutomationRule", back_populates="hospital", uselist=False)
