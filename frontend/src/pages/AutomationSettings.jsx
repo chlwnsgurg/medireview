@@ -62,6 +62,13 @@ export default function AutomationSettings() {
         setLogs(logsRes.data);
       })
       .finally(() => setLoading(false));
+
+    const id = setInterval(() => {
+      getAutomationLogs()
+        .then((res) => setLogs(res.data))
+        .catch(() => {});
+    }, 60000);
+    return () => clearInterval(id);
   }, []);
 
   const handleSave = async () => {
