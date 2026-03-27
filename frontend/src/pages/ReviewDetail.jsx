@@ -1,13 +1,28 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getReview, generateComments, getComments, postComment, updateComment } from '../api/client';
+import { getReview, generateComments, getComments, postComment, updateComment, updateReviewType } from '../api/client';
 import StarRating from '../components/StarRating';
 import PlatformBadge from '../components/PlatformBadge';
 
+const REVIEW_TYPE_INFO = {
+  positive: { label: '호감 리뷰', color: 'bg-green-100 text-green-700 border-green-300' },
+  complaint: { label: '컴플레인', color: 'bg-orange-100 text-orange-700 border-orange-300' },
+  claim: { label: '클레임', color: 'bg-red-100 text-red-700 border-red-300' },
+};
+
 const STYLE_LABELS = {
-  empathy: { label: '공감형', color: 'bg-blue-100 text-blue-700' },
-  guidance: { label: '안내형', color: 'bg-green-100 text-green-700' },
-  apology: { label: '사과형', color: 'bg-orange-100 text-orange-700' },
+  // 호감
+  pos_thanks: { label: '감사 중심', color: 'bg-green-100 text-green-700' },
+  pos_highlight: { label: '칭찬 강조', color: 'bg-green-100 text-green-700' },
+  pos_revisit: { label: '재방문 유도', color: 'bg-green-100 text-green-700' },
+  // 컴플레인
+  comp_empathy: { label: '공감 중심', color: 'bg-orange-100 text-orange-700' },
+  comp_explain: { label: '해명 중심', color: 'bg-orange-100 text-orange-700' },
+  comp_improve: { label: '개선 약속', color: 'bg-orange-100 text-orange-700' },
+  // 클레임
+  clm_apology: { label: '사과 중심', color: 'bg-red-100 text-red-700' },
+  clm_cause: { label: '원인 설명', color: 'bg-red-100 text-red-700' },
+  clm_prevent: { label: '개선 대책', color: 'bg-red-100 text-red-700' },
 };
 
 export default function ReviewDetail() {
@@ -22,6 +37,7 @@ export default function ReviewDetail() {
   const [editContent, setEditContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [typeChanging, setTypeChanging] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -47,12 +63,39 @@ export default function ReviewDetail() {
     setEditContent('');
     try {
       const res = await generateComments(id);
-      setComments(res.data);
+      setComments(res.data.comments);
+      setReview((prev) => ({
+        ...prev,
+        review_type: res.data.review_type,
+        review_type_reason: res.data.review_type_reason,
+      }));
     } catch (err) {
       setMessage('AI 댓글 생성에 실패했습니다.');
       console.error(err);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleTypeChange = async (newType) => {
+    setTypeChanging(true);
+    try {
+      const res = await updateReviewType(id, newType);
+      setReview((prev) => ({
+        ...prev,
+        review_type: res.data.review_type,
+        review_type_reason: res.data.review_type_reason,
+      }));
+      // 유형 변경 후 댓글 재생성
+      setComments([]);
+      setSelectedId(null);
+      setEditContent('');
+      setMessage('유형이 변경되었습니다. "AI 답변 생성" 버튼을 눌러 재생성하세요.');
+    } catch (err) {
+      setMessage('유형 변경에 실패했습니다.');
+      console.error(err);
+    } finally {
+      setTypeChanging(false);
     }
   };
 
@@ -82,7 +125,6 @@ export default function ReviewDetail() {
     setPosting(true);
     setMessage('');
     try {
-      // 수정된 내용이 있으면 먼저 저장
       if (editContent.trim()) {
         await updateComment(id, commentId, editContent);
       }
@@ -90,7 +132,6 @@ export default function ReviewDetail() {
       setMessage('댓글이 네이버에 등록되었습니다!');
       setSelectedId(null);
       setEditContent('');
-      // 리뷰 상태 갱신
       const res = await getReview(id);
       setReview(res.data);
       const cRes = await getComments(id);
@@ -112,6 +153,8 @@ export default function ReviewDetail() {
   const formattedDate = review.reviewed_at
     ? new Date(review.reviewed_at).toLocaleString('ko-KR')
     : '';
+
+  const typeInfo = REVIEW_TYPE_INFO[review.review_type] || null;
 
   return (
     <div className="flex-1 flex flex-col w-full">
@@ -149,11 +192,38 @@ export default function ReviewDetail() {
             </div>
           </div>
 
+          {/* 리뷰 유형 분류 결과 */}
+          {typeInfo && (
+            <div className="bg-white rounded-lg border border-gray-100 p-4 mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-600">리뷰 유형</span>
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${typeInfo.color}`}>
+                    {typeInfo.label}
+                  </span>
+                </div>
+                <select
+                  value={review.review_type}
+                  onChange={(e) => handleTypeChange(e.target.value)}
+                  disabled={typeChanging}
+                  className="text-xs border border-gray-300 rounded px-2 py-1 text-gray-600 focus:ring-2 focus:ring-indigo-400"
+                >
+                  <option value="positive">호감 리뷰</option>
+                  <option value="complaint">컴플레인</option>
+                  <option value="claim">클레임</option>
+                </select>
+              </div>
+              {review.review_type_reason && (
+                <p className="text-xs text-gray-400">분류 근거: {review.review_type_reason}</p>
+              )}
+            </div>
+          )}
+
           {/* 등록된 답글 표시 */}
           {review.is_replied && review.reply_content && (
             <div className="bg-white rounded-lg border border-green-200 p-6 mb-6 border-l-4 border-l-green-500">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-green-600 font-medium text-sm">🏥 등록된 답글</span>
+                <span className="text-green-600 font-medium text-sm">등록된 답글</span>
               </div>
               <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
                 {review.reply_content}
@@ -178,7 +248,7 @@ export default function ReviewDetail() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    생성 중...
+                    분류 및 생성 중...
                   </span>
                 ) : comments.length > 0 ? '재생성' : 'AI 답변 생성'}
               </button>
@@ -196,12 +266,12 @@ export default function ReviewDetail() {
             {/* 댓글 목록 */}
             {comments.length === 0 ? (
               <p className="text-gray-400 text-sm">
-                "AI 답변 생성" 버튼을 클릭하면 3가지 스타일의 답변이 생성됩니다.
+                "AI 답변 생성" 버튼을 클릭하면 리뷰 유형을 분류하고 맞춤 답변 3종이 생성됩니다.
               </p>
             ) : (
               <div className="space-y-4">
                 {comments.map((c) => {
-                  const styleInfo = STYLE_LABELS[c.style] || { label: c.style, color: 'bg-gray-100 text-gray-700' };
+                  const styleInfo = STYLE_LABELS[c.style] || { label: c.style_label || c.style, color: 'bg-gray-100 text-gray-700' };
                   const isSelected = selectedId === c.id;
                   return (
                     <div
@@ -220,7 +290,7 @@ export default function ReviewDetail() {
                           {styleInfo.label}
                         </span>
                         {c.is_posted && (
-                          <span className="text-xs text-green-600 font-medium">✓ 등록 완료</span>
+                          <span className="text-xs text-green-600 font-medium">등록 완료</span>
                         )}
                       </div>
                       <p className="text-gray-700 text-sm leading-relaxed">{c.content}</p>
@@ -232,7 +302,7 @@ export default function ReviewDetail() {
                 {!review.is_replied && selectedId && (
                   <div className="border-t border-gray-200 pt-4 mt-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ✏️ 답변 수정
+                      답변 수정
                     </label>
                     <textarea
                       value={editContent}

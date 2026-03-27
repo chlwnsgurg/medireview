@@ -8,6 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from config import settings
 from database import SessionLocal
 from services.crawler import sync_all_reviews
+from services.automation_service import batch_auto_reply
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,13 @@ def _sync_job():
     try:
         count = sync_all_reviews(db)
         logger.info(f"스케줄러: 리뷰 동기화 완료 — 신규 {count}건")
+
+        # 동기화 후 미답변 리뷰 자동 대응 처리 (실패 재시도 포함)
+        try:
+            result = batch_auto_reply(db)
+            logger.info(f"스케줄러: 자동 대응 완료 — {result}")
+        except Exception as e:
+            logger.error(f"스케줄러: 자동 대응 실패 — {e}")
     except Exception as e:
         logger.error(f"스케줄러: 리뷰 동기화 실패 — {e}")
     finally:

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getReviews, getReviewStats, syncReviews } from '../api/client';
+import { getReviews, getReviewStats, syncReviews, batchAutoReply } from '../api/client';
 import ReviewCard from '../components/ReviewCard';
 import FilterBar from '../components/FilterBar';
 
@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [batching, setBatching] = useState(false);
   const pageSize = 12;
 
   const fetchReviews = useCallback(async () => {
@@ -64,6 +65,21 @@ export default function Dashboard() {
     }
   };
 
+  const handleBatch = async () => {
+    setBatching(true);
+    try {
+      const res = await batchAutoReply();
+      const d = res.data;
+      alert(`일괄 처리 완료: 총 ${d.total}건 (성공 ${d.success}, 보류 ${d.held}, 승인대기 ${d.pending}, 실패 ${d.failed})`);
+      fetchReviews();
+      fetchStats();
+    } catch (err) {
+      alert('일괄 처리 실패: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setBatching(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / pageSize);
 
   return (
@@ -71,19 +87,34 @@ export default function Dashboard() {
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800">리뷰 대시보드</h2>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
-        >
-          {syncing ? (
+        <div className="flex gap-2">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+          >
+            {syncing ? (
+              <>
+                <span className="animate-spin">↻</span> 동기화 중...
+              </>
+            ) : (
+              <>🔄 리뷰 동기화</>
+            )}
+          </button>
+          <button
+            onClick={handleBatch}
+            disabled={batching}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+          >
+          {batching ? (
             <>
-              <span className="animate-spin">↻</span> 동기화 중...
+              <span className="animate-spin">↻</span> 처리 중...
             </>
           ) : (
-            <>🔄 리뷰 동기화</>
+            <>⚡ 미답변 리뷰 처리</>
           )}
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* 통계 카드 */}

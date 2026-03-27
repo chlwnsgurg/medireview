@@ -17,6 +17,13 @@ class Hospital(Base):
     alert_threshold = Column(Integer, default=2)  # 기본 2점 이하 알림
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # 카카오 연동
+    kakao_access_token = Column(Text, nullable=True)         # 암호화된 액세스 토큰
+    kakao_refresh_token = Column(Text, nullable=True)        # 암호화된 리프레시 토큰
+    kakao_token_expires_at = Column(DateTime, nullable=True)  # 토큰 만료 시각
+    kakao_notify_enabled = Column(Boolean, default=False)     # 카카오톡 알림 활성화
+    kakao_user_id = Column(String(50), nullable=True)         # 카카오 사용자 ID
+
     reviews = relationship("Review", back_populates="hospital")
     alerts = relationship("Alert", back_populates="hospital")
     automation_rule = relationship("AutomationRule", back_populates="hospital", uselist=False)
@@ -33,6 +40,8 @@ class Review(Base):
     rating = Column(Float, nullable=False)
     rating_scale = Column(Integer, default=5)  # 5 또는 10
     content = Column(Text)
+    review_type = Column(String(20), nullable=True)  # positive | complaint | claim
+    review_type_reason = Column(Text, nullable=True)  # AI 분류 근거
     image_urls = Column(Text, default="[]")  # JSON array
     reviewed_at = Column(DateTime)
     is_replied = Column(Boolean, default=False)
@@ -54,7 +63,7 @@ class Comment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     review_id = Column(Integer, ForeignKey("reviews.id"), nullable=False)
-    style = Column(String(20), nullable=False)  # empathy | guidance | apology
+    style = Column(String(30), nullable=False)  # pos_thanks | comp_empathy | clm_apology 등
     content = Column(Text, nullable=False)
     is_selected = Column(Boolean, default=False)
     is_posted = Column(Boolean, default=False)
@@ -85,7 +94,9 @@ class AutomationRule(Base):
     id = Column(Integer, primary_key=True, index=True)
     hospital_id = Column(Integer, ForeignKey("hospitals.id"), nullable=False, unique=True)
     is_enabled = Column(Boolean, default=False)
-    auto_reply_style = Column(String(20), default="empathy")  # empathy | guidance | apology
+    auto_reply_positive_variant = Column(String(30), default="pos_thanks")
+    auto_reply_complaint_variant = Column(String(30), default="comp_empathy")
+    auto_reply_claim_variant = Column(String(30), default="clm_apology")
     hold_keywords = Column(Text, default="[]")  # JSON array
     require_approval = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -1,6 +1,6 @@
 """
 Gemini AI 댓글 생성 서비스
-Google Gemini API를 사용해 리뷰에 대한 3가지 스타일 답변을 생성합니다.
+리뷰 유형 분류 후 유형별 맞춤 프롬프트로 답변 3종을 생성합니다.
 """
 import json
 import logging
@@ -23,68 +23,178 @@ model = genai.GenerativeModel(
     ),
 )
 
-SYSTEM_PROMPT = """당신은 병·의원의 리뷰 답변을 작성하는 전문가입니다.
-환자가 남긴 리뷰에 대해 병원 원장 또는 관리자 입장에서 정중하게 답변을 작성합니다.
+# ── 리뷰 유형 분류 ──────────────────────────────────
 
-규칙:
-- 한국어로 작성
-- 100~200자 내외
-- 환자의 감정에 공감하면서도 전문적인 톤 유지
-- 개인정보나 의료 정보는 포함하지 않기
-- 다시 방문을 유도하는 멘트 포함
+CLASSIFY_SYSTEM_PROMPT = """당신은 병원 리뷰 분류 전문가입니다.
+환자가 남긴 리뷰를 분석하여 아래 3가지 유형 중 하나로 분류하세요.
 
-3가지 스타일로 답변을 생성하세요:
-1. empathy (공감형): 환자 감정에 깊이 공감하며 따뜻하게 답변
-2. guidance (안내형): 감사 + 병원 서비스/개선 사항 안내 위주
-3. apology (사과형): 불편에 대한 진심 어린 사과 + 개선 약속
+## 분류 기준
 
-결과를 반드시 아래 JSON 형식으로만 출력하세요 (다른 텍스트 없이):
-[
-  {"style": "empathy", "content": "..."},
-  {"style": "guidance", "content": "..."},
-  {"style": "apology", "content": "..."}
-]
+1. positive (호감 리뷰): 만족, 칭찬, 감사를 표현하는 리뷰
+2. complaint (컴플레인): 주관적인 감정이나 기대치 미달에 의한 불만
+   - 예: 불친절함, 비싼 비용, 분위기 불만 등
+3. claim (클레임): 객관적인 기준이나 약속 위반으로 발생한 문제
+   - 예: 예약 미준수, 시술 부작용, 잘못된 진료, 위생 문제 등
+
+## 판단 보조 정보
+- 별점이 높더라도(4-5점) 내용에 불만이 있으면 내용 기준으로 분류
+- 별점이 낮더라도(1-2점) 내용이 긍정적이면 내용 기준으로 분류
+- 내용이 없거나 모호한 경우 별점 기준 (4점 이상 positive, 3점 이하 complaint)
+
+결과를 반드시 아래 JSON 형식으로만 출력하세요:
+{"type": "positive 또는 complaint 또는 claim", "reason": "분류 근거를 한 문장으로"}
 """
+
+
+def classify_review(review_content: str, review_rating: float) -> dict:
+    """
+    리뷰를 호감/컴플레인/클레임으로 분류한다.
+
+    Returns:
+        {"type": "positive|complaint|claim", "reason": "분류 근거"}
+    """
+    user_prompt = f"""리뷰 별점: {review_rating}점
+리뷰 내용: {review_content or "(내용 없음)"}
+
+위 리뷰를 분류해 주세요."""
+
+    try:
+        response = model.generate_content(
+            CLASSIFY_SYSTEM_PROMPT + "\n\n" + user_prompt,
+        )
+        text = _clean_json_response(response.text)
+        result = json.loads(text)
+
+        valid_types = {"positive", "complaint", "claim"}
+        if result.get("type") not in valid_types:
+            # 별점 기반 폴백
+            fallback_type = "positive" if review_rating >= 4 else "complaint"
+            logger.warning(f"분류 결과 유효하지 않음, 폴백: {fallback_type}")
+            return {"type": fallback_type, "reason": "별점 기반 자동 분류"}
+
+        return {"type": result["type"], "reason": result.get("reason", "")}
+
+    except Exception as e:
+        logger.error(f"리뷰 분류 실패: {e}")
+        fallback_type = "positive" if review_rating >= 4 else "complaint"
+        return {"type": fallback_type, "reason": "분류 실패, 별점 기반 자동 분류"}
+
+
+# ── 유형별 프롬프트 ──────────────────────────────────
+
+COMMON_RULES = """## 공통 규칙
+- 한국어로 작성
+- 100~150자 내외
+- 개인정보나 의료 정보는 포함하지 않기
+- 리뷰 작성자 이름을 자연스럽게 호칭에 활용"""
+
+TYPE_PROMPTS = {
+    "positive": f"""당신은 병원 리뷰 답변 전문가입니다. 아래는 만족/칭찬을 담은 호감 리뷰입니다.
+
+## 작성 전략
+1. 감사 인사: 방문 및 소중한 리뷰에 대한 감사 표현
+2. 포인트 강조: 고객이 언급한 장점(친절, 실력, 시설 등)을 한 번 더 언급
+3. 재방문 기약: 다음 만남을 기약하며 앞으로의 다짐을 밝힘
+
+## 톤 & 핵심
+- 공감과 감사 표현 중심
+- 리뷰에 나타난 병원의 서비스와 치료에 대한 구체적인 칭찬 포인트를 답글의 주요 소재로 활용
+- 따뜻하고 진심 어린 어조
+
+{COMMON_RULES}
+
+3가지 변형 답변을 생성하세요. 각 답변은 같은 전략을 따르되 표현과 강조점을 다르게 합니다.
+결과를 반드시 아래 JSON 형식으로만 출력하세요:
+[
+  {{"style": "pos_thanks", "content": "감사 중심 답변"}},
+  {{"style": "pos_highlight", "content": "칭찬 강조 답변"}},
+  {{"style": "pos_revisit", "content": "재방문 유도 답변"}}
+]""",
+
+    "complaint": f"""당신은 병원 리뷰 답변 전문가입니다. 아래는 주관적 불만을 담은 컴플레인 리뷰입니다.
+
+## 작성 전략: YES - BUT 구조
+- YES (언어/감정 복사): 고객이 제시한 문제를 요약하고, 느꼈을 감정에 공감 표현
+- BUT (정제된 해명): 오해가 있었던 상황이나 어쩔 수 없었던 배경을 정중하게 설명
+
+## 톤 & 핵심
+- 고객의 감정을 먼저 긍정하고 수용
+- 정제된 언어로 병원의 입장 설명 및 개선 의지 표명
+- 변명이 아닌 설명의 톤
+
+{COMMON_RULES}
+
+3가지 변형 답변을 생성하세요. 각 답변은 YES-BUT 구조를 따르되 강조점을 다르게 합니다.
+결과를 반드시 아래 JSON 형식으로만 출력하세요:
+[
+  {{"style": "comp_empathy", "content": "공감 중심 답변"}},
+  {{"style": "comp_explain", "content": "해명 중심 답변"}},
+  {{"style": "comp_improve", "content": "개선 약속 답변"}}
+]""",
+
+    "claim": f"""당신은 병원 리뷰 답변 전문가입니다. 아래는 객관적 사실 기반의 클레임 리뷰입니다.
+
+## 작성 전략: YES - BUT 구조
+- YES (언어 복사/사과): 문제를 즉시 인정하고 진정성 있는 사과 및 상황 설명
+- BUT (책임감/개선 약속): 재발 방지를 위한 구체적인 대책과 개선 의지 강조
+
+## 톤 & 핵심
+- 즉각적이고 진정성 있는 사과
+- 문제 회피 없이 책임 인정
+- 구체적인 재발 방지 대책 제시
+- 무거운 마음을 표현하되 과도한 비굴함은 지양
+
+{COMMON_RULES}
+
+3가지 변형 답변을 생성하세요. 각 답변은 YES-BUT 구조를 따르되 강조점을 다르게 합니다.
+결과를 반드시 아래 JSON 형식으로만 출력하세요:
+[
+  {{"style": "clm_apology", "content": "사과 중심 답변"}},
+  {{"style": "clm_cause", "content": "원인 설명 답변"}},
+  {{"style": "clm_prevent", "content": "개선 대책 답변"}}
+]""",
+}
+
+VALID_STYLES = {
+    "positive": {"pos_thanks", "pos_highlight", "pos_revisit"},
+    "complaint": {"comp_empathy", "comp_explain", "comp_improve"},
+    "claim": {"clm_apology", "clm_cause", "clm_prevent"},
+}
 
 
 def generate_comments(
     review_content: str,
     review_rating: float,
+    review_type: str,
     hospital_name: str,
     tone_style: str = "polite",
+    reviewer_name: str = "",
 ) -> list[dict]:
     """
-    리뷰에 대한 AI 댓글 3종(공감/안내/사과) 생성
+    유형별 맞춤 프롬프트로 AI 댓글 3종 생성
 
     Returns:
-        [{"style": "empathy", "content": "..."}, ...]
+        [{"style": "pos_thanks", "content": "..."}, ...]
     """
+    system_prompt = TYPE_PROMPTS.get(review_type, TYPE_PROMPTS["complaint"])
     tone_desc = "정중하고 격식 있는 말투" if tone_style == "polite" else "친근하고 부드러운 말투"
 
     user_prompt = f"""병원명: {hospital_name}
 말투 스타일: {tone_desc}
+리뷰 작성자: {reviewer_name or "고객"}
 리뷰 별점: {review_rating}점
-리뷰 내용: {review_content}
+리뷰 내용: {review_content or "(내용 없음)"}
 
-위 리뷰에 대한 3가지 스타일 답변을 JSON으로 생성하세요."""
+위 리뷰에 대한 3가지 변형 답변을 JSON으로 생성하세요."""
 
     try:
         response = model.generate_content(
-            SYSTEM_PROMPT + "\n\n" + user_prompt,
+            system_prompt + "\n\n" + user_prompt,
         )
-
-        text = response.text.strip()
-
-        # JSON 파싱 (코드블록이 있을 경우 제거)
-        if text.startswith("```"):
-            text = re.sub(r'^```\w*\n?', '', text)
-            text = re.sub(r'\n?```$', '', text)
-            text = text.strip()
-
+        text = _clean_json_response(response.text)
         comments = json.loads(text)
 
-        # 유효성 검증
-        valid_styles = {"empathy", "guidance", "apology"}
+        valid_styles = VALID_STYLES.get(review_type, set())
         result = []
         for c in comments:
             if c.get("style") in valid_styles and c.get("content"):
@@ -101,3 +211,13 @@ def generate_comments(
     except Exception as e:
         logger.error(f"Gemini API 호출 실패: {e}")
         return []
+
+
+def _clean_json_response(text: str) -> str:
+    """Gemini 응답에서 JSON 부분만 추출"""
+    text = text.strip()
+    if text.startswith("```"):
+        text = re.sub(r'^```\w*\n?', '', text)
+        text = re.sub(r'\n?```$', '', text)
+        text = text.strip()
+    return text
