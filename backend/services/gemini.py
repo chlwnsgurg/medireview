@@ -1,27 +1,38 @@
 """
 Gemini AI 댓글 생성 서비스
 리뷰 유형 분류 후 유형별 맞춤 프롬프트로 답변 3종을 생성합니다.
-"""
-import json
-import logging
-import re
 
-import google.generativeai as genai
+google-genai SDK + Pydantic Structured Output 사용
+→ response_schema로 JSON 구조를 강제하여 파싱 에러 방지
+"""
+import logging
+from typing import Literal
+
+from google import genai
+from pydantic import BaseModel, Field
 
 from config import settings
 
 logger = logging.getLogger(__name__)
 
-# Gemini 설정
-genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel(
-    "gemini-2.5-flash",
-    generation_config=genai.types.GenerationConfig(
-        response_mime_type="application/json",
-        temperature=0.7,
-        max_output_tokens=2048,
-    ),
-)
+# ── Gemini 클라이언트 설정 ─────────────────────────────
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
+MODEL_ID = "gemini-2.5-flash"
+
+
+# ── Pydantic 응답 스키마 ──────────────────────────────
+
+class ClassifyResult(BaseModel):
+    """리뷰 분류 결과 스키마"""
+    type: Literal["positive", "complaint", "claim"]
+    reason: str = Field(description="분류 근거를 한 문장으로")
+
+
+class CommentItem(BaseModel):
+    """생성된 댓글 항목 스키마"""
+    style: str = Field(description="댓글 스타일 코드")
+    content: str = Field(description="댓글 본문 (100~150자)")
+
 
 # ── 리뷰 유형 분류 ──────────────────────────────────
 
@@ -41,9 +52,7 @@ CLASSIFY_SYSTEM_PROMPT = """당신은 병원 리뷰 분류 전문가입니다.
 - 별점이 낮더라도(1-2점) 내용이 긍정적이면 내용 기준으로 분류
 - 내용이 없거나 모호한 경우 별점 기준 (4점 이상 positive, 3점 이하 complaint)
 
-결과를 반드시 아래 JSON 형식으로만 출력하세요:
-{"type": "positive 또는 complaint 또는 claim", "reason": "분류 근거를 한 문장으로"}
-"""
+결과를 JSON으로 출력하세요."""
 
 
 def classify_review(review_content: str, review_rating: float) -> dict:
@@ -59,20 +68,18 @@ def classify_review(review_content: str, review_rating: float) -> dict:
 위 리뷰를 분류해 주세요."""
 
     try:
-        response = model.generate_content(
-            CLASSIFY_SYSTEM_PROMPT + "\n\n" + user_prompt,
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=CLASSIFY_SYSTEM_PROMPT + "\n\n" + user_prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_json_schema": ClassifyResult.model_json_schema(),
+                "temperature": 0.7,
+                "max_output_tokens": 2048,
+            },
         )
-        text = _clean_json_response(response.text)
-        result = json.loads(text)
-
-        valid_types = {"positive", "complaint", "claim"}
-        if result.get("type") not in valid_types:
-            # 별점 기반 폴백
-            fallback_type = "positive" if review_rating >= 4 else "complaint"
-            logger.warning(f"분류 결과 유효하지 않음, 폴백: {fallback_type}")
-            return {"type": fallback_type, "reason": "별점 기반 자동 분류"}
-
-        return {"type": result["type"], "reason": result.get("reason", "")}
+        result = ClassifyResult.model_validate_json(response.text)
+        return {"type": result.type, "reason": result.reason}
 
     except Exception as e:
         logger.error(f"리뷰 분류 실패: {e}")
@@ -107,12 +114,8 @@ TYPE_PROMPTS = {
 {COMMON_RULES}
 
 3가지 변형 답변을 생성하세요. 각 답변은 같은 전략을 따르되 표현과 강조점을 다르게 합니다.
-결과를 반드시 아래 JSON 형식으로만 출력하세요:
-[
-  {{"style": "pos_thanks", "content": "감사 중심 답변"}},
-  {{"style": "pos_highlight", "content": "칭찬 강조 답변"}},
-  {{"style": "pos_revisit", "content": "재방문 유도 답변"}}
-]""",
+style 필드에는 반드시 pos_thanks, pos_highlight, pos_revisit 중 하나를 사용하세요.
+결과를 JSON 배열로 출력하세요.""",
 
     "complaint": f"""당신은 병원 리뷰 답변 전문가입니다. 아래는 주관적 불만을 담은 컴플레인 리뷰입니다.
 
@@ -128,12 +131,8 @@ TYPE_PROMPTS = {
 {COMMON_RULES}
 
 3가지 변형 답변을 생성하세요. 각 답변은 YES-BUT 구조를 따르되 강조점을 다르게 합니다.
-결과를 반드시 아래 JSON 형식으로만 출력하세요:
-[
-  {{"style": "comp_empathy", "content": "공감 중심 답변"}},
-  {{"style": "comp_explain", "content": "해명 중심 답변"}},
-  {{"style": "comp_improve", "content": "개선 약속 답변"}}
-]""",
+style 필드에는 반드시 comp_empathy, comp_explain, comp_improve 중 하나를 사용하세요.
+결과를 JSON 배열로 출력하세요.""",
 
     "claim": f"""당신은 병원 리뷰 답변 전문가입니다. 아래는 객관적 사실 기반의 클레임 리뷰입니다.
 
@@ -150,12 +149,8 @@ TYPE_PROMPTS = {
 {COMMON_RULES}
 
 3가지 변형 답변을 생성하세요. 각 답변은 YES-BUT 구조를 따르되 강조점을 다르게 합니다.
-결과를 반드시 아래 JSON 형식으로만 출력하세요:
-[
-  {{"style": "clm_apology", "content": "사과 중심 답변"}},
-  {{"style": "clm_cause", "content": "원인 설명 답변"}},
-  {{"style": "clm_prevent", "content": "개선 대책 답변"}}
-]""",
+style 필드에는 반드시 clm_apology, clm_cause, clm_prevent 중 하나를 사용하세요.
+결과를 JSON 배열로 출력하세요.""",
 }
 
 VALID_STYLES = {
@@ -188,39 +183,40 @@ def generate_comments(
 리뷰 별점: {review_rating}점
 리뷰 내용: {review_content or "(내용 없음)"}
 
-위 리뷰에 대한 3가지 변형 답변을 JSON으로 생성하세요."""
+위 리뷰에 대한 3가지 변형 답변을 JSON 배열로 생성하세요."""
+
+    # list[CommentItem]에 대한 JSON 스키마 생성
+    list_schema = {
+        "type": "array",
+        "items": CommentItem.model_json_schema(),
+    }
 
     try:
-        response = model.generate_content(
-            system_prompt + "\n\n" + user_prompt,
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=system_prompt + "\n\n" + user_prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_json_schema": list_schema,
+                "temperature": 0.7,
+                "max_output_tokens": 2048,
+            },
         )
-        text = _clean_json_response(response.text)
-        comments = json.loads(text)
+        import json
+        raw_comments = json.loads(response.text)
 
         valid_styles = VALID_STYLES.get(review_type, set())
         result = []
-        for c in comments:
-            if c.get("style") in valid_styles and c.get("content"):
-                result.append({"style": c["style"], "content": c["content"]})
+        for c in raw_comments:
+            item = CommentItem.model_validate(c)
+            if item.style in valid_styles and item.content:
+                result.append({"style": item.style, "content": item.content})
 
         if len(result) != 3:
             logger.warning(f"Gemini 응답에서 유효한 댓글 {len(result)}개 (기대: 3개)")
 
         return result
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Gemini 응답 JSON 파싱 실패: {e}")
-        return []
     except Exception as e:
         logger.error(f"Gemini API 호출 실패: {e}")
         return []
-
-
-def _clean_json_response(text: str) -> str:
-    """Gemini 응답에서 JSON 부분만 추출"""
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r'^```\w*\n?', '', text)
-        text = re.sub(r'\n?```$', '', text)
-        text = text.strip()
-    return text
