@@ -5,9 +5,13 @@ export default function AlertBadge() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    getUnreadCount()
-      .then((res) => setCount(res.data.count))
-      .catch(() => setCount(0));
+    const fetch = () =>
+      getUnreadCount()
+        .then((res) => setCount(res.data.count))
+        .catch(() => setCount(0));
+    fetch();
+    const id = setInterval(fetch, 60000);
+    return () => clearInterval(id);
   }, []);
 
   if (count === 0) return null;

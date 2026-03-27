@@ -17,11 +17,16 @@ export default function Alerts() {
   const [filter, setFilter] = useState('all'); // all | unread | read
   const [approving, setApproving] = useState(null);
 
-  useEffect(() => {
+  const fetchAlerts = () =>
     getAlerts()
       .then((res) => setAlerts(res.data))
       .catch((err) => console.error('알림 조회 실패:', err))
       .finally(() => setLoading(false));
+
+  useEffect(() => {
+    fetchAlerts();
+    const id = setInterval(fetchAlerts, 60000);
+    return () => clearInterval(id);
   }, []);
 
   const handleRead = async (alertId) => {

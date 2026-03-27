@@ -51,6 +51,14 @@ export default function Dashboard() {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchReviews();
+      fetchStats();
+    }, 60000);
+    return () => clearInterval(id);
+  }, [fetchReviews]);
+
   const handleSync = async () => {
     setSyncing(true);
     try {
