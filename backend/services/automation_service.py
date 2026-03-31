@@ -130,6 +130,7 @@ def process_auto_reply(db: Session, hospital: Hospital, review: Review) -> None:
         comment.is_selected = True
         comment.is_posted = True
         review.is_replied = True
+        review.reply_content = comment.content
         _create_log(db, hospital.id, review.id, comment.id,
                     action="auto_reply", status="posted")
         logger.info(f"자동 대응 완료: 리뷰#{review.id} 댓글#{comment.id}")
@@ -181,6 +182,7 @@ def approve_comment(db: Session, alert_id: int) -> dict:
     if success:
         comment.is_posted = True
         review.is_replied = True
+        review.reply_content = comment.content
         alert.is_read = True
 
         # 로그 업데이트
