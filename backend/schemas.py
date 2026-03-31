@@ -137,6 +137,10 @@ class ReviewTypeUpdate(BaseModel):
     review_type: str
 
 
+class ReplyEditRequest(BaseModel):
+    content: str
+
+
 # ── Alert ─────────────────────────────────────────────
 
 class AlertOut(BaseModel):

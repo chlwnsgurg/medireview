@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getReview, generateComments, getComments, postComment, updateComment, updateReviewType } from '../api/client';
+import { getReview, generateComments, getComments, postComment, updateComment, updateReviewType, editReply } from '../api/client';
 import StarRating from '../components/StarRating';
 import PlatformBadge from '../components/PlatformBadge';
 
@@ -38,6 +38,9 @@ export default function ReviewDetail() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [typeChanging, setTypeChanging] = useState(false);
+  const [isEditingReply, setIsEditingReply] = useState(false);
+  const [editReplyContent, setEditReplyContent] = useState('');
+  const [editingReply, setEditingReply] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -222,12 +225,70 @@ export default function ReviewDetail() {
           {/* 등록된 답글 표시 */}
           {review.is_replied && review.reply_content && (
             <div className="bg-white rounded-lg border border-green-200 p-6 mb-6 border-l-4 border-l-green-500">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-green-600 font-medium text-sm">등록된 답글</span>
+                {!isEditingReply && (
+                  <button
+                    onClick={() => {
+                      setIsEditingReply(true);
+                      setEditReplyContent(review.reply_content);
+                      setMessage('');
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50 transition-colors"
+                  >
+                    수정
+                  </button>
+                )}
               </div>
-              <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
-                {review.reply_content}
-              </p>
+              {isEditingReply ? (
+                <div>
+                  <textarea
+                    value={editReplyContent}
+                    onChange={(e) => setEditReplyContent(e.target.value)}
+                    rows={5}
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-y"
+                  />
+                  <div className="flex gap-3 mt-3">
+                    <button
+                      onClick={() => {
+                        setIsEditingReply(false);
+                        setEditReplyContent('');
+                      }}
+                      className="flex-1 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 font-medium text-sm"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!editReplyContent.trim()) return;
+                        setEditingReply(true);
+                        setMessage('');
+                        try {
+                          await editReply(id, editReplyContent);
+                          setReview((prev) => ({ ...prev, reply_content: editReplyContent }));
+                          setIsEditingReply(false);
+                          setMessage('답글이 네이버에서 수정되었습니다!');
+                          // 댓글 목록도 갱신
+                          const cRes = await getComments(id);
+                          setComments(cRes.data);
+                        } catch (err) {
+                          setMessage(err.response?.data?.detail || '답글 수정에 실패했습니다.');
+                        } finally {
+                          setEditingReply(false);
+                        }
+                      }}
+                      disabled={editingReply || !editReplyContent.trim()}
+                      className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                    >
+                      {editingReply ? '수정 중...' : '네이버에 수정 등록'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                  {review.reply_content}
+                </p>
+              )}
             </div>
           )}
         </div>

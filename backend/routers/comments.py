@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Review, Comment, Hospital
-from schemas import CommentOut, CommentPostRequest, CommentUpdateRequest, GenerateCommentsResponse
+from schemas import CommentOut, CommentPostRequest, CommentUpdateRequest, GenerateCommentsResponse, ReplyEditRequest
 from services.gemini import classify_review, generate_comments
 
 logger = logging.getLogger(__name__)
@@ -148,3 +148,53 @@ def post_comment(review_id: int, body: CommentPostRequest, db: Session = Depends
     db.commit()
 
     return {"message": "댓글이 성공적으로 등록되었습니다.", "comment_id": comment.id}
+
+
+@router.put("/{review_id}/edit-reply")
+def edit_reply(review_id: int, body: ReplyEditRequest, db: Session = Depends(get_db)):
+    """등록된 답글을 네이버에서 수정"""
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="리뷰를 찾을 수 없습니다.")
+
+    if not review.is_replied:
+        raise HTTPException(status_code=400, detail="등록된 답글이 없습니다.")
+
+    hospital = db.query(Hospital).first()
+    if not hospital or not hospital.naver_place_id:
+        raise HTTPException(status_code=400, detail="병원 네이버 Place ID가 설정되지 않았습니다.")
+
+    # naver_review_id 확인
+    naver_review_id = review.platform_review_id or ""
+    if naver_review_id.startswith("naver_"):
+        raise HTTPException(
+            status_code=400,
+            detail="이 리뷰는 naver_review_id가 없어 답글을 수정할 수 없습니다.",
+        )
+
+    # 네이버에서 답글 수정
+    from services.naver_comment_poster import edit_reply_on_naver
+
+    success = edit_reply_on_naver(
+        place_id=hospital.naver_place_id,
+        naver_review_id=naver_review_id,
+        new_text=body.content,
+    )
+
+    if not success:
+        raise HTTPException(status_code=500, detail="네이버 답글 수정에 실패했습니다.")
+
+    # DB 업데이트: review.reply_content
+    review.reply_content = body.content
+
+    # 해당 리뷰의 is_posted된 댓글 내용도 함께 업데이트
+    posted_comment = db.query(Comment).filter(
+        Comment.review_id == review_id,
+        Comment.is_posted == True,
+    ).first()
+    if posted_comment:
+        posted_comment.content = body.content
+
+    db.commit()
+
+    return {"message": "답글이 성공적으로 수정되었습니다.", "reply_content": body.content}
