@@ -27,6 +27,8 @@ export const updateComment = (reviewId, commentId, content) =>
   client.patch(`/reviews/${reviewId}/comments/${commentId}`, { content });
 export const postComment = (reviewId, commentId) =>
   client.post(`/reviews/${reviewId}/post-comment`, { comment_id: commentId });
+export const editReply = (reviewId, content) =>
+  client.put(`/reviews/${reviewId}/edit-reply`, { content });
 
 // ── Alerts ──────────────────────────────
 export const getAlerts = () => client.get('/alerts');

@@ -14,6 +14,7 @@ import urllib.parse
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
@@ -148,3 +149,90 @@ def post_reply_to_naver(
     finally:
         if driver:
             driver.quit()
+
+
+def _edit_reply(driver: webdriver.Chrome, reply_url: str, new_text: str) -> bool:
+    """답글 상세 페이지에서 기존 답글을 수정합니다."""
+    driver.get(reply_url)
+    time.sleep(3)
+
+    try:
+        wait = WebDriverWait(driver, 10)
+
+        # 1. "수정" 버튼 클릭 (답글 영역의 수정 링크)
+        edit_btn = wait.until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, 'a[data-pui-click-code="rv.replyedit"]')
+            )
+        )
+        edit_btn.click()
+        time.sleep(1)
+
+        # 2. textarea에서 기존 내용 지우고 새 내용 입력
+        textarea = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "textarea#replyWrite"))
+        )
+        textarea.click()
+        # 기존 내용 전체 선택 후 교체
+        textarea.send_keys(Keys.CONTROL, "a")
+        time.sleep(0.3)
+        textarea.send_keys(new_text)
+        time.sleep(0.5)
+
+        # 3. "수정" 완료 버튼 클릭
+        submit_btn = wait.until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, 'button[data-area-code="rv.replyeditedit"]')
+            )
+        )
+        submit_btn.click()
+        time.sleep(2)
+
+        logger.info("답글 수정 완료")
+        return True
+
+    except Exception as e:
+        logger.error(f"답글 수정 중 오류: {e}")
+        return False
+
+
+def edit_reply_on_naver(
+    place_id: str, naver_review_id: str, new_text: str
+) -> bool:
+    """
+    네이버 리뷰에 등록된 답글을 수정합니다.
+
+    Args:
+        place_id: 네이버 지도 Place ID
+        naver_review_id: 네이버 리뷰 고유 ID
+        new_text: 수정할 답글 내용
+
+    Returns:
+        성공 여부
+    """
+    if not naver_review_id:
+        logger.error("naver_review_id가 없어 답글을 수정할 수 없습니다.")
+        return False
+
+    if not new_text or len(new_text) < 15:
+        logger.error("답글은 최소 15자 이상이어야 합니다.")
+        return False
+
+    driver = None
+    try:
+        driver = _create_driver()
+
+        # naver_review_id로 답글 URL 직접 구성 (기존 함수 재사용)
+        reply_url = _build_reply_url(place_id, naver_review_id)
+        logger.info(f"답글 수정 URL: {reply_url}")
+
+        # 답글 수정
+        return _edit_reply(driver, reply_url, new_text)
+
+    except Exception as e:
+        logger.error(f"네이버 답글 수정 실패: {e}")
+        return False
+    finally:
+        if driver:
+            driver.quit()
+
