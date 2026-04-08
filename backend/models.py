@@ -14,6 +14,9 @@ class Hospital(Base):
     name = Column(String(200), nullable=False)
     naver_place_id = Column(String(50), default="")  # 네이버 지도 Place ID
     tone_style = Column(String(20), default="polite")  # polite | friendly
+    region = Column(String(100), default="")  # 병원 지역 (예: 서울시 강남구 / 강남역)
+    description = Column(Text, default="")  # 병원 소개 (예: 비수술 척추 치료 전문 병원)
+    seo_keywords = Column(Text, default="")  # SEO 키워드, 쉼표 구분 (3~5개 권장)
     alert_threshold = Column(Integer, default=2)  # 기본 2점 이하 알림
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -27,6 +27,9 @@ def api_generate_comments(review_id: int, db: Session = Depends(get_db)):
     hospital = db.query(Hospital).first()
     hospital_name = hospital.name if hospital else "병원"
     tone_style = hospital.tone_style if hospital else "polite"
+    region = hospital.region if hospital else ""
+    description = hospital.description if hospital else ""
+    seo_keywords = hospital.seo_keywords if hospital else ""
 
     # 기존 생성된 댓글 삭제 (재생성)
     db.query(Comment).filter(Comment.review_id == review_id).delete()
@@ -50,6 +53,9 @@ def api_generate_comments(review_id: int, db: Session = Depends(get_db)):
         hospital_name=hospital_name,
         tone_style=tone_style,
         reviewer_name=review.author or "",
+        region=region,
+        description=description,
+        seo_keywords=seo_keywords,
     )
 
     if not raw_comments:

@@ -14,6 +14,9 @@ export default function Settings() {
     name: '',
     naver_place_id: '',
     tone_style: 'polite',
+    region: '',
+    description: '',
+    seo_keywords: '',
     alert_threshold: 2,
   });
   const [kakaoState, setKakaoState] = useState({
@@ -189,6 +192,60 @@ export default function Settings() {
               <span className="text-sm text-gray-700">친근한 말투</span>
             </label>
           </div>
+        </div>
+
+        {/* 병원 지역 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            병원 지역
+          </label>
+          <input
+            type="text"
+            name="region"
+            value={form.region || ''}
+            onChange={handleChange}
+            placeholder="예: 서울시 강남구 / 강남역"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            AI 답글에 지역명을 자연스럽게 녹여냅니다.
+          </p>
+        </div>
+
+        {/* 병원 소개 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            병원 소개
+          </label>
+          <textarea
+            name="description"
+            value={form.description || ''}
+            onChange={handleChange}
+            placeholder="예: 비수술 척추 치료 전문 병원"
+            rows={2}
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            병원의 전문 분야나 특성을 입력하면 답글에 반영됩니다.
+          </p>
+        </div>
+
+        {/* SEO 키워드 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            SEO 키워드
+          </label>
+          <input
+            type="text"
+            name="seo_keywords"
+            value={form.seo_keywords || ''}
+            onChange={handleChange}
+            placeholder="예: 강남 한의원, 척추 치료, 비수술 치료"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            쉼표로 구분하여 3~5개 권장. AI가 긍정 리뷰 답글에 자연스럽게 녹여냅니다.
+          </p>
         </div>
 
         {/* 알림 기준 */}

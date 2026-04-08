@@ -96,7 +96,13 @@ COMMON_RULES = """## 공통 규칙
 - 리뷰 작성자 이름을 자연스럽게 호칭에 활용
 - ⚠️ 리뷰에 오타나 맞춤법 오류가 있을 수 있음
   → 원문을 그대로 인용하지 말고, 전후 문맥을 파악하여 작성자의 의도를 추론한 뒤 답변 작성
-  → 예: "달 치료하고 갑니다" → "잘 치료하고 갑니다"로 추론"""
+  → 예: "달 치료하고 갑니다" → "잘 치료하고 갑니다"로 추론
+
+## 병원 정보 및 SEO 키워드 활용 규칙
+- 병원 지역명이 제공된 경우, 답변에 자연스럽게 녹여넣기
+- 병원 소개가 제공된 경우, 병원의 전문성/특성을 답변에 반영하기
+- SEO 키워드가 제공된 경우, 1~2개를 자연스러운 맥락에서 포함하기
+  → 단, 억지스러운 키워드 삽입은 절대 금지. 자연스러운 경우에만 포함"""
 
 TYPE_PROMPTS = {
     "positive": f"""당신은 병원 리뷰 답변 전문가입니다. 아래는 만족/칭찬을 담은 호감 리뷰입니다.
@@ -130,6 +136,8 @@ style 필드에는 반드시 pos_thanks, pos_highlight, pos_revisit 중 하나�
 
 {COMMON_RULES}
 
+클레임 리뷰 답변에서는 병원 정보 및 SEO 키워드를 활용하지 마세요. 공감과 해명에만 집중합니다.
+
 3가지 변형 답변을 생성하세요. 각 답변은 YES-BUT 구조를 따르되 강조점을 다르게 합니다.
 style 필드에는 반드시 comp_empathy, comp_explain, comp_improve 중 하나를 사용하세요.
 결과를 JSON 배열로 출력하세요.""",
@@ -147,6 +155,8 @@ style 필드에는 반드시 comp_empathy, comp_explain, comp_improve 중 하나
 - 무거운 마음을 표현하되 과도한 비굴함은 지양
 
 {COMMON_RULES}
+
+⚠️ 클레임 리뷰 답변에서는 병원 정보 및 SEO 키워드를 활용하지 마세요. 사과와 개선 의지에만 집중합니다.
 
 3가지 변형 답변을 생성하세요. 각 답변은 YES-BUT 구조를 따르되 강조점을 다르게 합니다.
 style 필드에는 반드시 clm_apology, clm_cause, clm_prevent 중 하나를 사용하세요.
@@ -167,6 +177,9 @@ def generate_comments(
     hospital_name: str,
     tone_style: str = "polite",
     reviewer_name: str = "",
+    region: str = "",
+    description: str = "",
+    seo_keywords: str = "",
 ) -> list[dict]:
     """
     유형별 맞춤 프롬프트로 AI 댓글 3종 생성
@@ -177,7 +190,17 @@ def generate_comments(
     system_prompt = TYPE_PROMPTS.get(review_type, TYPE_PROMPTS["complaint"])
     tone_desc = "정중하고 격식 있는 말투" if tone_style == "polite" else "친근하고 부드러운 말투"
 
-    user_prompt = f"""병원명: {hospital_name}
+    # 병원 정보 블록 구성 (값이 있는 항목만 포함)
+    hospital_info_lines = [f"병원명: {hospital_name}"]
+    if region:
+        hospital_info_lines.append(f"병원 지역: {region}")
+    if description:
+        hospital_info_lines.append(f"병원 소개: {description}")
+    if seo_keywords:
+        hospital_info_lines.append(f"SEO 키워드: {seo_keywords}")
+    hospital_info = "\n".join(hospital_info_lines)
+
+    user_prompt = f"""{hospital_info}
 말투 스타일: {tone_desc}
 리뷰 작성자: {reviewer_name or "고객"}
 리뷰 별점: {review_rating}점
