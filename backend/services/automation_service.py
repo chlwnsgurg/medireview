@@ -74,6 +74,9 @@ def process_auto_reply(db: Session, hospital: Hospital, review: Review) -> None:
         hospital_name=hospital.name,
         tone_style=hospital.tone_style,
         reviewer_name=review.author or "",
+        region=hospital.region or "",
+        description=hospital.description or "",
+        seo_keywords=hospital.seo_keywords or "",
     )
     if not raw_comments:
         _create_log(db, hospital.id, review.id, None,

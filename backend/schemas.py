@@ -10,6 +10,9 @@ class HospitalBase(BaseModel):
     name: str
     naver_place_id: str = ""
     tone_style: str = "polite"
+    region: str = ""
+    description: str = ""
+    seo_keywords: str = ""
     alert_threshold: int = 2
 
 
@@ -21,6 +24,9 @@ class HospitalUpdate(BaseModel):
     name: Optional[str] = None
     naver_place_id: Optional[str] = None
     tone_style: Optional[str] = None
+    region: Optional[str] = None
+    description: Optional[str] = None
+    seo_keywords: Optional[str] = None
     alert_threshold: Optional[int] = None
     kakao_notify_enabled: Optional[bool] = None
 
@@ -42,6 +48,9 @@ class HospitalOut(HospitalBase):
             name=hospital.name,
             naver_place_id=hospital.naver_place_id or "",
             tone_style=hospital.tone_style or "polite",
+            region=hospital.region or "",
+            description=hospital.description or "",
+            seo_keywords=hospital.seo_keywords or "",
             alert_threshold=hospital.alert_threshold or 2,
             kakao_connected=bool(hospital.kakao_access_token),
             kakao_notify_enabled=hospital.kakao_notify_enabled or False,
