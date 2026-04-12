@@ -4,7 +4,6 @@ import AlertBadge from './AlertBadge';
 const navItems = [
   { to: '/', label: '대시보드', icon: '📊' },
   { to: '/alerts', label: '알림', icon: '🔔', showBadge: true },
-  { to: '/automation', label: '자동화', icon: '🤖' },
   { to: '/settings', label: '설정', icon: '⚙️' },
 ];
 
