@@ -204,7 +204,7 @@ export default function Settings() {
             name="region"
             value={form.region || ''}
             onChange={handleChange}
-            placeholder="예: 서울시 강남구 / 강남역"
+            placeholder="예: 서울시 강남구, 강남역"
             className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <p className="text-xs text-gray-400 mt-1">
