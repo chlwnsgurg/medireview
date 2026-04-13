@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   getHospital,
   createHospital,
@@ -8,10 +8,11 @@ import {
   sendTestKakaoMessage,
   getAutomationRules,
   updateAutomationRules,
-} from '../api/client';
+} from '@/api/client';
 
 export default function Settings() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [form, setForm] = useState({
     name: '',
     naver_place_id: '',
@@ -65,10 +66,9 @@ export default function Settings() {
     if (searchParams.get('kakao') === 'connected') {
       setKakaoMessage('카카오 계정이 연동되었습니다.');
       setKakaoState((prev) => ({ ...prev, connected: true, notify_enabled: true }));
-      searchParams.delete('kakao');
-      setSearchParams(searchParams, { replace: true });
+      router.replace('/settings');
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

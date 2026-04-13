@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getReviews, getReviewStats, syncReviews, batchAutoReply } from '../api/client';
-import ReviewCard from '../components/ReviewCard';
-import FilterBar from '../components/FilterBar';
+import { getReviews, getReviewStats, syncReviews, batchAutoReply } from '@/api/client';
+import ReviewCard from '@/components/ReviewCard';
+import FilterBar from '@/components/FilterBar';
 
 export default function Dashboard() {
   const [reviews, setReviews] = useState([]);

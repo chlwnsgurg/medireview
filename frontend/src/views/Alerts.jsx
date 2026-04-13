@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getAlerts, markAlertRead, approveAlert } from '../api/client';
+import { useRouter } from 'next/navigation';
+import { getAlerts, markAlertRead, approveAlert } from '@/api/client';
 
 const ALERT_LABELS = {
   complaint: '🟠 컴플레인 리뷰가 감지되었습니다',
@@ -11,7 +11,7 @@ const ALERT_LABELS = {
 };
 
 export default function Alerts() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all | unread | read
@@ -59,7 +59,7 @@ export default function Alerts() {
 
   const handleClick = (alert) => {
     if (!alert.is_read) handleRead(alert.id);
-    navigate(`/reviews/${alert.review_id}`);
+    router.push(`/reviews/${alert.review_id}`);
   };
 
   const filtered = alerts.filter((a) => {

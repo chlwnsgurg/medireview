@@ -58,7 +58,7 @@ BACKEND_PID=$!
 echo -e "${CYAN}▶ 프론트엔드 실행 준비 중...${NC}"
 (
   cd "$FRONTEND_DIR"
-  npm run dev -- --host 0.0.0.0 --port 5173
+  npm run dev -- --hostname 0.0.0.0
 ) &
 FRONTEND_PID=$!
 
@@ -70,7 +70,7 @@ echo -e "\n${GREEN}${BOLD}==================================================${NC
 echo -e "${GREEN}${BOLD}   🚀 개발 서버가 성공적으로 실행되었습니다!      ${NC}"
 echo -e "${GREEN}${BOLD}==================================================${NC}"
 echo -e "   🔹 ${BOLD}Backend API:${NC}  ${BLUE}http://localhost:8000${NC}"
-echo -e "   🔸 ${BOLD}Frontend Web:${NC} ${BLUE}http://localhost:5173${NC}"
+echo -e "   🔸 ${BOLD}Frontend Web:${NC} ${BLUE}http://localhost:3001${NC}"
 echo ""
 echo -e "   💡 ${YELLOW}${BOLD}중지하려면 터미널에서 Ctrl+C를 누르세요.${NC}"
 echo -e "${GREEN}${BOLD}==================================================${NC}\n"
