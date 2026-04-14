@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Pretendard Variable";
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/PretendardVariable.woff2") format("woff2-variations");
+}
+
+@theme {
+  /* ─── 레이아웃 ─── */
+  --width-sidebar: 256px;
+  --width-sidebar-collapsed: 64px;
+
+  /* ─── 사이드바 (다크 그린) ─── */
+  --color-sidebar-bg: #0F2A20;
+  --color-sidebar-hover: #163828;
+  --color-sidebar-active: rgba(26, 107, 78, 0.18);
+  --color-sidebar-text: #9BBFAF;
+  --color-sidebar-text-active: #FFFFFF;
+  --color-sidebar-border: rgba(255, 255, 255, 0.08);
+  --color-sidebar-category: #6B8F80;
+
+  /* ─── 콘텐츠 ─── */
+  --color-bg: #FFFFFF;
+  --color-bg-alt: #F7F7F5;
+  --color-bg-card: #FFFFFF;
+  --color-bg-elevated: #FAFAFA;
+  --color-bg-hover: #F0F0EE;
+
+  /* ─── 텍스트 ─── */
+  --color-text: #171717;
+  --color-text-body: #525252;
+  --color-text-muted: #737373;
+
+  /* ─── 악센트 ─── */
+  --color-accent: #1A6B4E;
+  --color-accent-hover: #15573F;
+  --color-accent-muted: rgba(26, 107, 78, 0.06);
+
+  /* ─── 브랜드 ─── */
+  --color-primary: #1A6B4E;
+  --color-primary-hover: #15573F;
+  --color-secondary: #9A7B2A;
+
+  /* ─── 시스템 ─── */
+  --color-border: #E5E5E5;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+  --color-info: #2563EB;
+
+  /* ─── 그림자 ─── */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03);
+
+  /* ─── 타이포그래피 ─── */
+  --font-sans: "Pretendard Variable", "Pretendard",
+               "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body { margin: 0; }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}

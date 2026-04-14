@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   getHospital,
   createHospital,
   updateHospital,
   disconnectKakao,
   sendTestKakaoMessage,
-} from '../api/client';
+  getAutomationRules,
+  updateAutomationRules,
+} from '@/api/client';
 
 export default function Settings() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [form, setForm] = useState({
     name: '',
     naver_place_id: '',
@@ -29,6 +32,12 @@ export default function Settings() {
   const [kakaoMessage, setKakaoMessage] = useState('');
   const [kakaoLoading, setKakaoLoading] = useState(false);
 
+  // 자동화 설정 상태
+  const [autoRule, setAutoRule] = useState(null);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [autoMessage, setAutoMessage] = useState('');
+  const [newKeyword, setNewKeyword] = useState('');
+
   useEffect(() => {
     getHospital()
       .then((res) => {
@@ -41,6 +50,15 @@ export default function Settings() {
       .catch((err) => {
         if (err.response?.status === 404) setIsNew(true);
       });
+
+    getAutomationRules()
+      .then((res) => {
+        setAutoRule({
+          ...res.data,
+          hold_keywords: JSON.parse(res.data.hold_keywords || '[]'),
+        });
+      })
+      .catch(() => {});
   }, []);
 
   // 카카오 연동 콜백 처리
@@ -48,10 +66,9 @@ export default function Settings() {
     if (searchParams.get('kakao') === 'connected') {
       setKakaoMessage('카카오 계정이 연동되었습니다.');
       setKakaoState((prev) => ({ ...prev, connected: true, notify_enabled: true }));
-      searchParams.delete('kakao');
-      setSearchParams(searchParams, { replace: true });
+      router.replace('/settings');
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -111,6 +128,66 @@ export default function Settings() {
     }
   };
 
+  // ── 자동화 설정 핸들러 ──
+  const VARIANT_OPTIONS = {
+    positive: {
+      label: '호감 리뷰', color: 'text-green-700',
+      options: [
+        { value: 'pos_thanks', label: '감사 중심' },
+        { value: 'pos_highlight', label: '칭찬 강조' },
+        { value: 'pos_revisit', label: '재방문 유도' },
+      ],
+    },
+    complaint: {
+      label: '컴플레인', color: 'text-orange-700',
+      options: [
+        { value: 'comp_empathy', label: '공감 중심' },
+        { value: 'comp_explain', label: '해명 중심' },
+        { value: 'comp_improve', label: '개선 약속' },
+      ],
+    },
+    claim: {
+      label: '클레임', color: 'text-red-700',
+      options: [
+        { value: 'clm_apology', label: '사과 중심' },
+        { value: 'clm_cause', label: '원인 설명' },
+        { value: 'clm_prevent', label: '개선 대책' },
+      ],
+    },
+  };
+
+  const handleAutoSave = async () => {
+    setAutoSaving(true);
+    setAutoMessage('');
+    try {
+      await updateAutomationRules({
+        is_enabled: autoRule.is_enabled,
+        auto_reply_positive_variant: autoRule.auto_reply_positive_variant,
+        auto_reply_complaint_variant: autoRule.auto_reply_complaint_variant,
+        auto_reply_claim_variant: autoRule.auto_reply_claim_variant,
+        hold_keywords: JSON.stringify(autoRule.hold_keywords),
+        require_approval: autoRule.require_approval,
+      });
+      setAutoMessage('저장되었습니다.');
+    } catch {
+      setAutoMessage('저장에 실패했습니다.');
+    } finally {
+      setAutoSaving(false);
+    }
+  };
+
+  const addKeyword = () => {
+    const kw = newKeyword.trim();
+    if (kw && !autoRule.hold_keywords.includes(kw)) {
+      setAutoRule({ ...autoRule, hold_keywords: [...autoRule.hold_keywords, kw] });
+      setNewKeyword('');
+    }
+  };
+
+  const removeKeyword = (kw) => {
+    setAutoRule({ ...autoRule, hold_keywords: autoRule.hold_keywords.filter((k) => k !== kw) });
+  };
+
   const handleTestMessage = async () => {
     setKakaoLoading(true);
     setKakaoMessage('');
@@ -126,7 +203,7 @@ export default function Settings() {
 
   return (
     <div className="max-w-xl">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">병원 설정</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">설정</h2>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
         {/* 병원명 */}
@@ -204,7 +281,7 @@ export default function Settings() {
             name="region"
             value={form.region || ''}
             onChange={handleChange}
-            placeholder="예: 서울시 강남구 / 강남역"
+            placeholder="예: 서울시 강남구, 강남역"
             className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <p className="text-xs text-gray-400 mt-1">
@@ -276,6 +353,114 @@ export default function Settings() {
           )}
         </div>
       </form>
+
+      {/* ── 자동화 설정 ── */}
+      {autoRule && (
+        <div className="bg-white rounded-lg shadow p-6 mt-6 space-y-6">
+          <h3 className="text-lg font-bold text-gray-800">자동 대응 설정</h3>
+
+          {/* ON/OFF 토글 */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-gray-800">자동 대응</p>
+              <p className="text-sm text-gray-400">새 리뷰에 AI가 자동으로 답변을 생성하고 등록합니다</p>
+            </div>
+            <button
+              onClick={() => setAutoRule({ ...autoRule, is_enabled: !autoRule.is_enabled })}
+              className={`relative w-14 h-7 rounded-full transition-colors ${
+                autoRule.is_enabled ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                autoRule.is_enabled ? 'translate-x-7' : ''
+              }`} />
+            </button>
+          </div>
+
+          {/* 유형별 기본 변형 선택 */}
+          <div>
+            <p className="font-medium text-gray-800 mb-1">유형별 기본 답변 변형</p>
+            <p className="text-sm text-gray-400 mb-4">리뷰 유형에 따라 자동 선택되는 답변 변형을 설정합니다</p>
+            <div className="space-y-4">
+              {Object.entries(VARIANT_OPTIONS).map(([type, config]) => {
+                const fieldName = `auto_reply_${type}_variant`;
+                return (
+                  <div key={type} className="flex items-center gap-4">
+                    <span className={`text-sm font-medium w-24 ${config.color}`}>{config.label}</span>
+                    <select
+                      value={autoRule[fieldName] || config.options[0].value}
+                      onChange={(e) => setAutoRule({ ...autoRule, [fieldName]: e.target.value })}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {config.options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 관리자 승인 */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-gray-800">관리자 승인 필요</p>
+              <p className="text-sm text-gray-400">AI가 댓글을 생성한 뒤 관리자가 승인해야 등록됩니다</p>
+            </div>
+            <button
+              onClick={() => setAutoRule({ ...autoRule, require_approval: !autoRule.require_approval })}
+              className={`relative w-14 h-7 rounded-full transition-colors ${
+                autoRule.require_approval ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                autoRule.require_approval ? 'translate-x-7' : ''
+              }`} />
+            </button>
+          </div>
+
+          {/* 보류 키워드 */}
+          <div>
+            <p className="font-medium text-gray-800 mb-3">대응 보류 키워드</p>
+            <p className="text-sm text-gray-400 mb-2">이 키워드가 포함된 리뷰는 자동 대응을 보류합니다</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {autoRule.hold_keywords.map((kw) => (
+                <span key={kw} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700">
+                  {kw}
+                  <button onClick={() => removeKeyword(kw)} className="text-gray-400 hover:text-red-500 ml-1">x</button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addKeyword()}
+                placeholder="키워드 입력"
+                className="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                onClick={addKeyword}
+                className="px-4 py-2 bg-gray-100 text-sm rounded-lg hover:bg-gray-200"
+              >추가</button>
+            </div>
+          </div>
+
+          {/* 저장 */}
+          {autoMessage && (
+            <p className={`text-sm ${autoMessage.includes('실패') ? 'text-red-500' : 'text-green-600'}`}>{autoMessage}</p>
+          )}
+          <button
+            onClick={handleAutoSave}
+            disabled={autoSaving}
+            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+          >
+            {autoSaving ? '저장 중...' : '자동화 설정 저장'}
+          </button>
+        </div>
+      )}
 
       {/* ── 카카오톡 알림 설정 ── */}
       <div className="bg-white rounded-lg shadow p-6 mt-6 space-y-5">
