@@ -1,6 +1,6 @@
 "use client";
 import { Suspense } from "react";
-import Settings from "@/views/Settings";
+import Settings from "@medireview/views/Settings";
 
 export default function SettingsRoute() {
   return (

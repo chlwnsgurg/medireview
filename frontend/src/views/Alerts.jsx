@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAlerts, markAlertRead, approveAlert } from '@/api/client';
+import { getAlerts, markAlertRead, approveAlert } from '@medireview/api/client';
+
+const ROUTE_PREFIX = process.env.NEXT_PUBLIC_MEDIREVIEW_ROUTE_PREFIX || "";
 
 const ALERT_LABELS = {
   complaint: '🟠 컴플레인 리뷰가 감지되었습니다',
@@ -59,7 +61,7 @@ export default function Alerts() {
 
   const handleClick = (alert) => {
     if (!alert.is_read) handleRead(alert.id);
-    router.push(`/reviews/${alert.review_id}`);
+    router.push(`${ROUTE_PREFIX}/reviews/${alert.review_id}`);
   };
 
   const filtered = alerts.filter((a) => {

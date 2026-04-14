@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSidebar } from "@/lib/sidebar-context";
+import { useSidebar } from "@medireview/lib/sidebar-context";
+
+const ROUTE_PREFIX = process.env.NEXT_PUBLIC_MEDIREVIEW_ROUTE_PREFIX || "";
 
 /* ─── 네비게이션 아이콘 ─── */
 function NavIcon({ icon, size = 18 }) {
@@ -51,25 +53,28 @@ const NAV_GROUPS = [
   {
     label: "OVERVIEW",
     items: [
-      { id: "dashboard", href: "/", label: "대시보드", icon: "chart" },
+      { id: "dashboard", href: `${ROUTE_PREFIX}/`, label: "대시보드", icon: "chart" },
     ],
   },
   {
     label: "MANAGEMENT",
     items: [
-      { id: "alerts", href: "/alerts", label: "알림", icon: "bell" },
-      { id: "settings", href: "/settings", label: "설정", icon: "gear" },
+      { id: "alerts", href: `${ROUTE_PREFIX}/alerts`, label: "알림", icon: "bell" },
+      { id: "settings", href: `${ROUTE_PREFIX}/settings`, label: "설정", icon: "gear" },
     ],
   },
 ];
 
 /* ─── 메인 사이드바 컴포넌트 ─── */
-export default function Sidebar() {
+export default function Sidebar({ collapsed: collapsedProp, onToggle, style }) {
   const pathname = usePathname();
-  const { collapsed, toggle } = useSidebar();
+  const ctx = useSidebar();
+  const collapsed = collapsedProp ?? ctx?.collapsed ?? false;
+  const toggle = onToggle ?? ctx?.toggle;
 
   const isActive = (href) => {
-    if (href === "/") return pathname === "/";
+    const rootHref = `${ROUTE_PREFIX}/`;
+    if (href === rootHref) return pathname === rootHref || pathname === ROUTE_PREFIX;
     return pathname === href || pathname.startsWith(href + "/");
   };
 
@@ -81,10 +86,11 @@ export default function Sidebar() {
         transition-all duration-300 ease-in-out
         ${collapsed ? "w-[var(--width-sidebar-collapsed)]" : "w-[var(--width-sidebar)]"}
       `}
+      style={style}
     >
       {/* 앱 로고 */}
       <div className="flex h-14 items-center px-4 border-b border-[var(--color-sidebar-border)]">
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href={`${ROUTE_PREFIX}/`} className="flex items-center gap-2.5 group">
           <span className="text-lg">🏥</span>
           {!collapsed && (
             <span className="font-semibold text-[var(--color-sidebar-text-active)] tracking-tight text-[15px] group-hover:text-[var(--color-accent)] transition-colors">

@@ -8,7 +8,10 @@ import {
   sendTestKakaoMessage,
   getAutomationRules,
   updateAutomationRules,
-} from '@/api/client';
+} from '@medireview/api/client';
+
+const API_BASE = process.env.NEXT_PUBLIC_MEDIREVIEW_API_BASE || '/api';
+const ROUTE_PREFIX = process.env.NEXT_PUBLIC_MEDIREVIEW_ROUTE_PREFIX || '';
 
 export default function Settings() {
   const searchParams = useSearchParams();
@@ -66,7 +69,7 @@ export default function Settings() {
     if (searchParams.get('kakao') === 'connected') {
       setKakaoMessage('카카오 계정이 연동되었습니다.');
       setKakaoState((prev) => ({ ...prev, connected: true, notify_enabled: true }));
-      router.replace('/settings');
+      router.replace(`${ROUTE_PREFIX}/settings`);
     }
   }, [searchParams, router]);
 
@@ -100,7 +103,7 @@ export default function Settings() {
   };
 
   const handleKakaoConnect = () => {
-    window.location.href = '/api/kakao/authorize';
+    window.location.href = `${API_BASE}/kakao/authorize`;
   };
 
   const handleKakaoDisconnect = async () => {

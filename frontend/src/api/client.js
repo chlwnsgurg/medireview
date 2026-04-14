@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE = process.env.NEXT_PUBLIC_MEDIREVIEW_API_BASE || '/api';
+
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 });
 

@@ -1,5 +1,5 @@
 "use client";
-import Alerts from "@/views/Alerts";
+import Alerts from "@medireview/views/Alerts";
 export default function AlertsRoute() {
   return <Alerts />;
 }

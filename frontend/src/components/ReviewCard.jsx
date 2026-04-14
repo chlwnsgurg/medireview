@@ -1,6 +1,8 @@
 import { useRouter } from 'next/navigation';
-import StarRating from '@/components/StarRating';
-import PlatformBadge from '@/components/PlatformBadge';
+import StarRating from '@medireview/components/StarRating';
+import PlatformBadge from '@medireview/components/PlatformBadge';
+
+const ROUTE_PREFIX = process.env.NEXT_PUBLIC_MEDIREVIEW_ROUTE_PREFIX || "";
 
 const REVIEW_TYPE_BADGE = {
   positive: { label: '호감', color: 'text-green-600 bg-green-50' },
@@ -19,7 +21,7 @@ export default function ReviewCard({ review }) {
 
   return (
     <div
-      onClick={() => router.push(`/reviews/${review.id}`)}
+      onClick={() => router.push(`${ROUTE_PREFIX}/reviews/${review.id}`)}
       className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-5 cursor-pointer border border-gray-100"
     >
       {/* 상단: 플랫폼 + 별점 + 날짜 */}

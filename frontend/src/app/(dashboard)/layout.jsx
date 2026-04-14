@@ -1,7 +1,7 @@
 "use client";
 
-import Sidebar from "@/components/layout/Sidebar";
-import { SidebarProvider, useSidebar } from "@/lib/sidebar-context";
+import Sidebar from "@medireview/components/layout/Sidebar";
+import { SidebarProvider, useSidebar } from "@medireview/lib/sidebar-context";
 
 function DashboardInner({ children }) {
   const { collapsed } = useSidebar();

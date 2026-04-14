@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getUnreadCount } from '@/api/client';
+import { getUnreadCount } from '@medireview/api/client';
 
 export default function AlertBadge() {
   const [count, setCount] = useState(0);
