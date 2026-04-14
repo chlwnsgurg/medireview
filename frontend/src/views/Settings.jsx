@@ -203,7 +203,7 @@ export default function Settings() {
 
   return (
     <div className="max-w-xl">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">자동화 설정</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">설정</h2>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
         {/* 병원명 */}
