@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from models import Hospital, Review
 from services.naver_crawler import fetch_naver_reviews
 from services.alert_service import check_and_create_alert
-from services.gemini import classify_review
+from services.llm import classify_review
 
 logger = logging.getLogger(__name__)
 

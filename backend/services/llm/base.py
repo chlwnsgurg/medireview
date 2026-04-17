@@ -1,23 +1,18 @@
 """
-Gemini AI 댓글 생성 서비스
-리뷰 유형 분류 후 유형별 맞춤 프롬프트로 답변 3종을 생성합니다.
-
-google-genai SDK + Pydantic Structured Output 사용
-→ response_schema로 JSON 구조를 강제하여 파싱 에러 방지
+LLM Provider 공용 모듈
+- 분류/댓글 생성용 프롬프트
+- Pydantic 응답 스키마
+- 프로바이더 간 공유되는 입력 빌더 / 출력 검증 로직
+- LLMProvider 프로토콜 (Gemini / Ollama 구현체가 준수)
 """
-import logging
-from typing import Literal
+from __future__ import annotations
 
-from google import genai
+import logging
+from typing import Literal, Protocol
+
 from pydantic import BaseModel, Field
 
-from config import settings
-
 logger = logging.getLogger(__name__)
-
-# ── Gemini 클라이언트 설정 ─────────────────────────────
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
-MODEL_ID = "gemini-2.5-flash"
 
 
 # ── Pydantic 응답 스키마 ──────────────────────────────
@@ -34,7 +29,13 @@ class CommentItem(BaseModel):
     content: str = Field(description="댓글 본문 (100~150자)")
 
 
-# ── 리뷰 유형 분류 ──────────────────────────────────
+COMMENT_LIST_JSON_SCHEMA = {
+    "type": "array",
+    "items": CommentItem.model_json_schema(),
+}
+
+
+# ── 리뷰 유형 분류 프롬프트 ─────────────────────────────
 
 CLASSIFY_SYSTEM_PROMPT = """당신은 병원 리뷰 분류 전문가입니다.
 환자가 남긴 리뷰를 분석하여 아래 3가지 유형 중 하나로 분류하세요.
@@ -55,39 +56,15 @@ CLASSIFY_SYSTEM_PROMPT = """당신은 병원 리뷰 분류 전문가입니다.
 결과를 JSON으로 출력하세요."""
 
 
-def classify_review(review_content: str, review_rating: float) -> dict:
-    """
-    리뷰를 호감/컴플레인/클레임으로 분류한다.
-
-    Returns:
-        {"type": "positive|complaint|claim", "reason": "분류 근거"}
-    """
-    user_prompt = f"""리뷰 별점: {review_rating}점
-리뷰 내용: {review_content or "(내용 없음)"}
-
-위 리뷰를 분류해 주세요."""
-
-    try:
-        response = client.models.generate_content(
-            model=MODEL_ID,
-            contents=CLASSIFY_SYSTEM_PROMPT + "\n\n" + user_prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_json_schema": ClassifyResult.model_json_schema(),
-                "temperature": 0.7,
-                "max_output_tokens": 2048,
-            },
-        )
-        result = ClassifyResult.model_validate_json(response.text)
-        return {"type": result.type, "reason": result.reason}
-
-    except Exception as e:
-        logger.error(f"리뷰 분류 실패: {e}")
-        fallback_type = "positive" if review_rating >= 4 else "complaint"
-        return {"type": fallback_type, "reason": "분류 실패, 별점 기반 자동 분류"}
+def build_classify_user_prompt(review_content: str, review_rating: float) -> str:
+    return (
+        f"리뷰 별점: {review_rating}점\n"
+        f"리뷰 내용: {review_content or '(내용 없음)'}\n\n"
+        "위 리뷰를 분류해 주세요."
+    )
 
 
-# ── 유형별 프롬프트 ──────────────────────────────────
+# ── 유형별 댓글 생성 프롬프트 ──────────────────────────
 
 COMMON_RULES = """## 공통 규칙
 - 한국어로 작성
@@ -170,27 +147,20 @@ VALID_STYLES = {
 }
 
 
-def generate_comments(
+def build_generate_user_prompt(
     review_content: str,
     review_rating: float,
-    review_type: str,
     hospital_name: str,
-    tone_style: str = "polite",
-    reviewer_name: str = "",
-    region: str = "",
-    description: str = "",
-    seo_keywords: str = "",
-) -> list[dict]:
-    """
-    유형별 맞춤 프롬프트로 AI 댓글 3종 생성
-
-    Returns:
-        [{"style": "pos_thanks", "content": "..."}, ...]
-    """
-    system_prompt = TYPE_PROMPTS.get(review_type, TYPE_PROMPTS["complaint"])
-    tone_desc = "정중하고 격식 있는 말투" if tone_style == "polite" else "친근하고 부드러운 말투"
-
-    # 병원 정보 블록 구성 (값이 있는 항목만 포함)
+    tone_style: str,
+    reviewer_name: str,
+    region: str,
+    description: str,
+    seo_keywords: str,
+) -> str:
+    """댓글 생성용 user 프롬프트 구성 (Gemini/Ollama 공용)"""
+    tone_desc = (
+        "정중하고 격식 있는 말투" if tone_style == "polite" else "친근하고 부드러운 말투"
+    )
     hospital_info_lines = [f"병원명: {hospital_name}"]
     if region:
         hospital_info_lines.append(f"병원 지역: {region}")
@@ -200,7 +170,7 @@ def generate_comments(
         hospital_info_lines.append(f"SEO 키워드: {seo_keywords}")
     hospital_info = "\n".join(hospital_info_lines)
 
-    user_prompt = f"""{hospital_info}
+    return f"""{hospital_info}
 말투 스타일: {tone_desc}
 리뷰 작성자: {reviewer_name or "고객"}
 리뷰 별점: {review_rating}점
@@ -208,38 +178,43 @@ def generate_comments(
 
 위 리뷰에 대한 3가지 변형 답변을 JSON 배열로 생성하세요."""
 
-    # list[CommentItem]에 대한 JSON 스키마 생성
-    list_schema = {
-        "type": "array",
-        "items": CommentItem.model_json_schema(),
-    }
 
-    try:
-        response = client.models.generate_content(
-            model=MODEL_ID,
-            contents=system_prompt + "\n\n" + user_prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_json_schema": list_schema,
-                "temperature": 0.7,
-                "max_output_tokens": 2048,
-            },
-        )
-        import json
-        raw_comments = json.loads(response.text)
+# ── 출력 검증 유틸 ────────────────────────────────────
 
-        valid_styles = VALID_STYLES.get(review_type, set())
-        result = []
-        for c in raw_comments:
-            item = CommentItem.model_validate(c)
-            if item.style in valid_styles and item.content:
-                result.append({"style": item.style, "content": item.content})
+def validate_comments(raw_comments: list[dict], review_type: str) -> list[dict]:
+    """LLM 응답 배열을 VALID_STYLES 기준으로 필터링"""
+    valid_styles = VALID_STYLES.get(review_type, set())
+    result: list[dict] = []
+    for c in raw_comments:
+        item = CommentItem.model_validate(c)
+        if item.style in valid_styles and item.content:
+            result.append({"style": item.style, "content": item.content})
 
-        if len(result) != 3:
-            logger.warning(f"Gemini 응답에서 유효한 댓글 {len(result)}개 (기대: 3개)")
+    if len(result) != 3:
+        logger.warning(f"LLM 응답에서 유효한 댓글 {len(result)}개 (기대: 3개)")
+    return result
 
-        return result
 
-    except Exception as e:
-        logger.error(f"Gemini API 호출 실패: {e}")
-        return []
+def classify_fallback(review_rating: float) -> dict:
+    """분류 실패 시 별점 기반 fallback"""
+    fallback_type = "positive" if review_rating >= 4 else "complaint"
+    return {"type": fallback_type, "reason": "분류 실패, 별점 기반 자동 분류"}
+
+
+# ── Provider 프로토콜 ─────────────────────────────────
+
+class LLMProvider(Protocol):
+    def classify_review(self, review_content: str, review_rating: float) -> dict: ...
+
+    def generate_comments(
+        self,
+        review_content: str,
+        review_rating: float,
+        review_type: str,
+        hospital_name: str,
+        tone_style: str = "polite",
+        reviewer_name: str = "",
+        region: str = "",
+        description: str = "",
+        seo_keywords: str = "",
+    ) -> list[dict]: ...

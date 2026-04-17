@@ -19,7 +19,7 @@ from models import (
     Hospital,
     Review,
 )
-from services.gemini import classify_review, generate_comments
+from services.llm import classify_review, generate_comments
 
 logger = logging.getLogger(__name__)
 

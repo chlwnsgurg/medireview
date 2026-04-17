@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Review, Comment, Hospital
 from schemas import CommentOut, CommentPostRequest, CommentUpdateRequest, GenerateCommentsResponse, ReplyEditRequest
-from services.gemini import classify_review, generate_comments
+from services.llm import classify_review, generate_comments
 
 logger = logging.getLogger(__name__)
 
