@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_MEDIREVIEW_API_BASE || '/api';
+const API_BASE = import.meta.env.VITE_MEDIREVIEW_API_BASE || '/api';
 
 const client = axios.create({
   baseURL: API_BASE,

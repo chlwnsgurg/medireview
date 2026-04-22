@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useNavigate } from 'react-router';
 import { getReview, generateComments, getComments, postComment, updateComment, updateReviewType, editReply } from '@medireview/api/client';
 import StarRating from '@medireview/components/StarRating';
 import PlatformBadge from '@medireview/components/PlatformBadge';
-
-const ROUTE_PREFIX = process.env.NEXT_PUBLIC_MEDIREVIEW_ROUTE_PREFIX || "";
 
 const REVIEW_TYPE_INFO = {
   positive: { label: '호감 리뷰', color: 'bg-green-100 text-green-700 border-green-300' },
@@ -29,7 +27,7 @@ const STYLE_LABELS = {
 
 export default function ReviewDetail() {
   const { id } = useParams();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [review, setReview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState([]);
@@ -56,10 +54,10 @@ export default function ReviewDetail() {
       .catch((err) => {
         console.error('리뷰 조회 실패:', err);
         alert('리뷰를 찾을 수 없습니다.');
-        router.push(`${ROUTE_PREFIX}/`);
+        navigate('/');
       })
       .finally(() => setLoading(false));
-  }, [id, router]);
+  }, [id, navigate]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -165,7 +163,7 @@ export default function ReviewDetail() {
     <div className="flex-1 flex flex-col w-full">
       {/* 뒤로가기 */}
       <button
-        onClick={() => router.push(`${ROUTE_PREFIX}/`)}
+        onClick={() => navigate('/')}
         className="text-sm text-gray-500 hover:text-gray-700 mb-4 flex items-center gap-1"
       >
         ← 대시보드로 돌아가기

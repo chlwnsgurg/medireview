@@ -69,7 +69,7 @@ sleep 3
 echo -e "\n${GREEN}${BOLD}==================================================${NC}"
 echo -e "${GREEN}${BOLD}   🚀 개발 서버가 성공적으로 실행되었습니다!      ${NC}"
 echo -e "${GREEN}${BOLD}==================================================${NC}"
-echo -e "   🔸 ${BOLD}Frontend Web:${NC} ${BLUE}http://localhost:3000${NC}"
+echo -e "   🔸 ${BOLD}Frontend Web:${NC} ${BLUE}http://localhost:5173${NC}"
 echo -e "   🔹 ${BOLD}Backend API:${NC}  ${BLUE}http://localhost:8000${NC}"
 echo ""
 echo -e "   💡 ${YELLOW}${BOLD}중지하려면 터미널에서 Ctrl+C를 누르세요.${NC}"

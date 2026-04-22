@@ -1,9 +1,8 @@
-"use client";
-
+import { Outlet } from "react-router";
 import Sidebar from "@medireview/components/layout/Sidebar";
 import { SidebarProvider, useSidebar } from "@medireview/lib/sidebar-context";
 
-function DashboardInner({ children }) {
+function DashboardInner() {
   const { collapsed } = useSidebar();
 
   return (
@@ -17,17 +16,17 @@ function DashboardInner({ children }) {
         `}
       >
         <div className="p-8 flex flex-col flex-1">
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>
   );
 }
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout() {
   return (
     <SidebarProvider>
-      <DashboardInner>{children}</DashboardInner>
+      <DashboardInner />
     </SidebarProvider>
   );
 }

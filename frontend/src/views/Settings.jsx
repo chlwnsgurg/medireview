@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useNavigate } from 'react-router';
 import {
   getHospital,
   createHospital,
@@ -10,12 +10,11 @@ import {
   updateAutomationRules,
 } from '@medireview/api/client';
 
-const API_BASE = process.env.NEXT_PUBLIC_MEDIREVIEW_API_BASE || '/api';
-const ROUTE_PREFIX = process.env.NEXT_PUBLIC_MEDIREVIEW_ROUTE_PREFIX || '';
+const API_BASE = import.meta.env.VITE_MEDIREVIEW_API_BASE || '/api';
 
 export default function Settings() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '',
     naver_place_id: '',
@@ -69,9 +68,9 @@ export default function Settings() {
     if (searchParams.get('kakao') === 'connected') {
       setKakaoMessage('카카오 계정이 연동되었습니다.');
       setKakaoState((prev) => ({ ...prev, connected: true, notify_enabled: true }));
-      router.replace(`${ROUTE_PREFIX}/settings`);
+      navigate('/settings', { replace: true });
     }
-  }, [searchParams, router]);
+  }, [searchParams, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
