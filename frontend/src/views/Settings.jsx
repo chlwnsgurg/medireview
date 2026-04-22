@@ -9,12 +9,14 @@ import {
   getAutomationRules,
   updateAutomationRules,
 } from '@medireview/api/client';
+import { useAppPath } from '@medireview/lib/app-root.jsx';
 
 const API_BASE = import.meta.env.VITE_MEDIREVIEW_API_BASE || '/api';
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const appPath = useAppPath();
   const [form, setForm] = useState({
     name: '',
     naver_place_id: '',
@@ -68,7 +70,7 @@ export default function Settings() {
     if (searchParams.get('kakao') === 'connected') {
       setKakaoMessage('카카오 계정이 연동되었습니다.');
       setKakaoState((prev) => ({ ...prev, connected: true, notify_enabled: true }));
-      navigate('/settings', { replace: true });
+      navigate(appPath('settings'), { replace: true });
     }
   }, [searchParams, navigate]);
 

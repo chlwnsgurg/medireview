@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router';
 import StarRating from '@medireview/components/StarRating';
 import PlatformBadge from '@medireview/components/PlatformBadge';
+import { useAppPath } from '@medireview/lib/app-root.jsx';
 
 const REVIEW_TYPE_BADGE = {
   positive: { label: '호감', color: 'text-green-600 bg-green-50' },
@@ -10,6 +11,7 @@ const REVIEW_TYPE_BADGE = {
 
 export default function ReviewCard({ review }) {
   const navigate = useNavigate();
+  const appPath = useAppPath();
 
   const formattedDate = review.reviewed_at
     ? new Date(review.reviewed_at).toLocaleDateString('ko-KR')
@@ -19,7 +21,7 @@ export default function ReviewCard({ review }) {
 
   return (
     <div
-      onClick={() => navigate(`/reviews/${review.id}`)}
+      onClick={() => navigate(appPath(`reviews/${review.id}`))}
       className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-5 cursor-pointer border border-gray-100"
     >
       {/* 상단: 플랫폼 + 별점 + 날짜 */}

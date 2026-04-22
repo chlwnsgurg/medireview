@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # 카카오 API
     KAKAO_CLIENT_ID: str = ""          # REST API 키
     KAKAO_CLIENT_SECRET: str = ""      # Client Secret
-    KAKAO_REDIRECT_URI: str = "http://localhost:8000/api/kakao/redirect"
+    KAKAO_REDIRECT_URI: str = "http://localhost:9001/api/kakao/redirect"
 
     # 토큰 암호화 키 (Fernet)
     TOKEN_ENCRYPTION_KEY: str = ""     # 비어 있으면 앱 시작 시 자동 생성

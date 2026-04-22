@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { useSidebar } from "@medireview/lib/sidebar-context";
+import { useAppPath, useAppRoot } from "@medireview/lib/app-root.jsx";
 
 /* ─── 네비게이션 아이콘 ─── */
 function NavIcon({ icon, size = 18 }) {
@@ -48,14 +49,14 @@ const NAV_GROUPS = [
   {
     label: "OVERVIEW",
     items: [
-      { id: "dashboard", href: "/", label: "대시보드", icon: "chart" },
+      { id: "dashboard", path: "", label: "대시보드", icon: "chart" },
     ],
   },
   {
     label: "MANAGEMENT",
     items: [
-      { id: "alerts", href: "/alerts", label: "알림", icon: "bell" },
-      { id: "settings", href: "/settings", label: "설정", icon: "gear" },
+      { id: "alerts", path: "alerts", label: "알림", icon: "bell" },
+      { id: "settings", path: "settings", label: "설정", icon: "gear" },
     ],
   },
 ];
@@ -64,13 +65,17 @@ const NAV_GROUPS = [
 export default function Sidebar({ collapsed: collapsedProp, onToggle, style }) {
   const location = useLocation();
   const ctx = useSidebar();
+  const appPath = useAppPath();
+  const appRoot = useAppRoot();
   const collapsed = collapsedProp ?? ctx?.collapsed ?? false;
   const toggle = onToggle ?? ctx?.toggle;
 
   const pathname = location.pathname;
+  const rootHref = appPath("");
+  const mergedStyle = appRoot ? { left: "var(--width-app-rail)", ...style } : style;
 
   const isActive = (href) => {
-    if (href === "/") return pathname === "/";
+    if (href === rootHref) return pathname === rootHref;
     return pathname === href || pathname.startsWith(href + "/");
   };
 
@@ -82,11 +87,11 @@ export default function Sidebar({ collapsed: collapsedProp, onToggle, style }) {
         transition-all duration-300 ease-in-out
         ${collapsed ? "w-[var(--width-sidebar-collapsed)]" : "w-[var(--width-sidebar)]"}
       `}
-      style={style}
+      style={mergedStyle}
     >
       {/* 앱 로고 */}
       <div className="flex h-14 items-center px-4 border-b border-[var(--color-sidebar-border)]">
-        <Link to="/" className="flex items-center gap-2.5 group">
+        <Link to={rootHref} className="flex items-center gap-2.5 group">
           <span className="text-lg">🏥</span>
           {!collapsed && (
             <span className="font-semibold text-[var(--color-sidebar-text-active)] tracking-tight text-[15px] group-hover:text-[var(--color-accent)] transition-colors">
@@ -112,11 +117,12 @@ export default function Sidebar({ collapsed: collapsedProp, onToggle, style }) {
 
             <ul className="space-y-0.5 px-2">
               {group.items.map((item) => {
-                const active = isActive(item.href);
+                const href = appPath(item.path);
+                const active = isActive(href);
                 return (
                   <li key={item.id}>
                     <Link
-                      to={item.href}
+                      to={href}
                       aria-current={active ? "page" : undefined}
                       className={`
                         flex items-center gap-3 rounded-lg px-3 py-2 text-sm
