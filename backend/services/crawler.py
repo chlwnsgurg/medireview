@@ -85,8 +85,18 @@ def sync_naver_reviews(db: Session) -> int:
         logger.warning("병원 정보 또는 네이버 Place ID가 없습니다.")
         return 0
 
-    logger.info(f"네이버 리뷰 동기화 시작: place_id={hospital.naver_place_id}")
-    raw_reviews = fetch_naver_reviews(hospital.naver_place_id)
+    # 첫 동기화(DB에 해당 병원 리뷰 0건)면 풀 크롤, 이후엔 증분 크롤
+    has_existing = (
+        db.query(Review.id).filter(Review.hospital_id == hospital.id).first()
+        is not None
+    )
+    max_pages = 10 if has_existing else 100
+
+    logger.info(
+        f"네이버 리뷰 동기화 시작: place_id={hospital.naver_place_id}, "
+        f"max_pages={max_pages} ({'증분' if has_existing else '초기'})"
+    )
+    raw_reviews = fetch_naver_reviews(hospital.naver_place_id, max_pages=max_pages)
     saved = _save_reviews(db, hospital.id, raw_reviews)
     logger.info(f"네이버 리뷰 동기화 완료: 신규 {saved}건")
     return saved
