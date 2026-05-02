@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "gemini"                     # "gemini" | "ollama"
     GEMINI_API_KEY: str = ""
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "gemma4:latest"
-    OLLAMA_TIMEOUT_SEC: int = 60
+    OLLAMA_MODEL: str = "gemma4:26b"
+    OLLAMA_TIMEOUT_SEC: int = 300
 
     SYNC_INTERVAL_MINUTES: int = 60 # 리뷰 동기화 간격 (분)
     NAVER_PLACE_ID: str = ""  # 네이버 지도 Place ID
