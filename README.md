@@ -27,7 +27,7 @@
 - **Database**: SQLite
 - **AI**: Google Gemini API (`gemini-2.5-flash`)
 - **크롤링**: Selenium 4.25 + BeautifulSoup4
-- **스케줄러**: APScheduler (5분 주기 자동 수집)
+- **스케줄러**: APScheduler (60분 주기 자동 수집·자동 대응, `SYNC_INTERVAL_MINUTES`로 조정)
 
 ### Frontend
 - **Framework**: React 19 + Vite 7
@@ -117,7 +117,7 @@ pip install -r requirements.txt
 cat > .env << EOF
 GEMINI_API_KEY=your_gemini_api_key
 DATABASE_URL=sqlite:///./medireview.db
-SYNC_INTERVAL_MINUTES=5
+SYNC_INTERVAL_MINUTES=60
 NAVER_ID=your_naver_id
 NAVER_PW=your_naver_pw
 EOF

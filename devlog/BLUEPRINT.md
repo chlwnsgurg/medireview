@@ -189,7 +189,7 @@ AutomationRule (자동화 규칙)
 ### 6.1 리뷰 수집 흐름
 
 ```
-[APScheduler 주기적 실행 (5분 간격)]
+[APScheduler 주기적 실행 (60분 간격)]
     │
     ├─ crawler.py: 모두닥 리뷰 수집
     ├─ crawler.py: 굿닥 리뷰 수집
@@ -350,7 +350,7 @@ DATABASE_URL=sqlite:///./medireview.db
 GEMINI_API_KEY=your-gemini-api-key
 
 # 크롤링 설정
-SYNC_INTERVAL_MINUTES=5
+SYNC_INTERVAL_MINUTES=60
 
 # 프론트엔드
 VITE_API_BASE_URL=http://localhost:8000/api
