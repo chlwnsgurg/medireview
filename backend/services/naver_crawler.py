@@ -102,21 +102,24 @@ def _generate_review_id(author: str, content: str, date_str: str) -> str:
 
 
 def _extract_naver_review_id(item) -> str | None:
-    """결제정보 버튼 URL에서 네이버 리뷰 ID를 추출합니다.
-    
-    결제정보 버튼 href 예시:
-    https://m.place.naver.com/my/review/{review_id}/paymentInfo
+    """리뷰 항목의 답글/수정/결제정보 버튼 URL에서 네이버 리뷰 ID를 추출합니다.
+
+    href 예시:
+    - 답글(reply) / 수정(editreply):
+      https://new-m.smartplace.naver.com/bizes/place-id/{place_id}/reviews/{review_id}?from=search...
+    - 결제정보(paymentinfobutton, 영수증 리뷰에만 존재):
+      https://m.place.naver.com/my/review/{review_id}/paymentInfo
+
+    결제내역 인증 리뷰는 결제정보 버튼이 없으므로 답글/수정 버튼을 우선 확인합니다.
     """
     import re
-    try:
-        payment_link = item.select_one('a[data-pui-click-code="paymentinfobutton"]')
-        if payment_link and payment_link.get("href"):
-            href = payment_link["href"]
-            match = re.search(r'/review/([a-f0-9]+)/paymentInfo', href)
-            if match:
-                return match.group(1)
-    except Exception:
-        pass
+    for click_code in ("reply", "editreply", "paymentinfobutton"):
+        link = item.select_one(f'a[data-pui-click-code="{click_code}"][href]')
+        if not link:
+            continue
+        match = re.search(r'/reviews?/([a-f0-9]{24})(?:[/?]|$)', link["href"])
+        if match:
+            return match.group(1)
     return None
 
 
@@ -209,25 +212,27 @@ def fetch_naver_reviews(place_id: str, max_pages: int = 10) -> list[dict]:
                 img_elements = item.select("div.pui__MJi___ img")
                 image_urls = [img.get("src", "") for img in img_elements if img.get("src")]
 
-                # 네이버 리뷰 ID 추출 (결제정보 버튼 URL에서)
+                # 네이버 리뷰 ID 추출 (답글/수정/결제정보 버튼 URL에서)
                 naver_review_id = _extract_naver_review_id(item)
                 if naver_review_id:
                     platform_review_id = naver_review_id
                 else:
-                    # 결제정보 버튼이 없는 경우 해시 기반 ID 폴백
+                    # ID를 찾지 못한 경우 해시 기반 ID 폴백 (답글 등록 불가)
                     platform_review_id = _generate_review_id(author, content, date_str)
-                    logger.warning(f"결제정보 버튼 미발견, 해시 ID 사용: {platform_review_id}")
+                    logger.warning(f"리뷰 ID 미발견, 해시 ID 사용: {platform_review_id}")
 
-                # 답변 여부 판별: 수정 버튼(editreply)이 있으면 이미 답변된 리뷰
+                # 답변 여부 판별: 수정 버튼(editreply) 또는 답글 본문이 있으면 이미 답변된 리뷰
+                # 짧은 답글은 span, 길어서 '더보기'가 붙으면 a 태그로 렌더링됨
                 edit_btn = item.select_one('a[data-pui-click-code="editreply"]')
-                is_replied = edit_btn is not None
+                reply_btn = item.select_one('a[data-pui-click-code="reply"]')
+                reply_area = item.select_one('div.pui__J0tczd > [data-pui-click-code="text"]')
+                is_replied = edit_btn is not None or reply_area is not None
+                # 답글/수정 버튼은 사업주 로그인 상태에서만 노출됨.
+                # 답글도 버튼도 없으면(로그인 풀림 등) 미답변인지 알 수 없으므로 상태 미확인으로 표시
+                reply_status_known = is_replied or reply_btn is not None
 
                 # 기존 답글 내용 추출 (답변된 리뷰의 경우)
-                reply_content = ""
-                if is_replied:
-                    reply_area = item.select_one("div.pui__J0tczd span")
-                    if reply_area:
-                        reply_content = reply_area.text.strip()
+                reply_content = reply_area.text.strip() if reply_area else ""
 
                 if content:  # 내용이 있는 리뷰만 수집
                     reviews.append({
@@ -240,6 +245,7 @@ def fetch_naver_reviews(place_id: str, max_pages: int = 10) -> list[dict]:
                         "image_urls": image_urls,
                         "reviewed_at": reviewed_at,
                         "is_replied": is_replied,
+                        "reply_status_known": reply_status_known,
                         "reply_content": reply_content,
                     })
 

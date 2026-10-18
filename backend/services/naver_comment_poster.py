@@ -8,6 +8,7 @@ Selenium으로 네이버 사업주 페이지에서 리뷰에 답글을 등록합
 2. 답글 상세 페이지 이동 → 답글 쓰기 → 등록
 """
 import logging
+import re
 import time
 import urllib.parse
 
@@ -50,6 +51,14 @@ def _create_driver() -> webdriver.Chrome:
     return webdriver.Chrome(service=service, options=options)
 
 
+def _is_valid_review_id(naver_review_id: str) -> bool:
+    """네이버 리뷰 ID 형식(24자리 hex) 여부.
+
+    해시 폴백 ID(naver_xxx)로 URL을 구성하면 다른 리뷰에 답글이 등록될 수 있으므로 차단합니다.
+    """
+    return bool(re.fullmatch(r"[a-f0-9]{24}", naver_review_id or ""))
+
+
 def _build_reply_url(place_id: str, naver_review_id: str) -> str:
     """naver_review_id로 답글 상세 페이지 URL을 직접 구성합니다.
 
@@ -68,10 +77,27 @@ def _build_reply_url(place_id: str, naver_review_id: str) -> str:
     )
 
 
-def _write_reply(driver: webdriver.Chrome, reply_url: str, reply_text: str) -> bool:
+def _is_on_review_page(driver: webdriver.Chrome, naver_review_id: str) -> bool:
+    """리다이렉트 후 실제 도착한 페이지가 대상 리뷰의 상세 페이지인지 확인합니다.
+
+    리뷰를 찾지 못해 목록 등 다른 화면으로 이동하면, 첫 번째 리뷰에 답글이 등록될 수 있으므로 차단합니다.
+    """
+    path = urllib.parse.urlparse(driver.current_url).path
+    if f"/reviews/{naver_review_id}" not in path:
+        logger.error(f"대상 리뷰 페이지가 아닙니다 (기대 ID: {naver_review_id}, 현재 URL: {driver.current_url})")
+        return False
+    return True
+
+
+def _write_reply(
+    driver: webdriver.Chrome, reply_url: str, naver_review_id: str, reply_text: str
+) -> bool:
     """답글 상세 페이지에서 답글 작성 및 등록"""
     driver.get(reply_url)
     time.sleep(3)
+
+    if not _is_on_review_page(driver, naver_review_id):
+        return False
 
     try:
         wait = WebDriverWait(driver, 10)
@@ -124,8 +150,8 @@ def post_reply_to_naver(
     Returns:
         성공 여부
     """
-    if not naver_review_id:
-        logger.error("naver_review_id가 없어 답글을 등록할 수 없습니다.")
+    if not _is_valid_review_id(naver_review_id):
+        logger.error(f"유효한 naver_review_id가 아니어서 답글을 등록할 수 없습니다: {naver_review_id!r}")
         return False
 
     if not reply_text or len(reply_text) < 15:
@@ -141,7 +167,7 @@ def post_reply_to_naver(
         logger.info(f"답글 URL: {reply_url}")
 
         # 답글 작성 및 등록
-        return _write_reply(driver, reply_url, reply_text)
+        return _write_reply(driver, reply_url, naver_review_id, reply_text)
 
     except Exception as e:
         logger.error(f"네이버 댓글 등록 실패: {e}")
@@ -151,10 +177,15 @@ def post_reply_to_naver(
             driver.quit()
 
 
-def _edit_reply(driver: webdriver.Chrome, reply_url: str, new_text: str) -> bool:
+def _edit_reply(
+    driver: webdriver.Chrome, reply_url: str, naver_review_id: str, new_text: str
+) -> bool:
     """답글 상세 페이지에서 기존 답글을 수정합니다."""
     driver.get(reply_url)
     time.sleep(3)
+
+    if not _is_on_review_page(driver, naver_review_id):
+        return False
 
     try:
         wait = WebDriverWait(driver, 10)
@@ -210,8 +241,8 @@ def edit_reply_on_naver(
     Returns:
         성공 여부
     """
-    if not naver_review_id:
-        logger.error("naver_review_id가 없어 답글을 수정할 수 없습니다.")
+    if not _is_valid_review_id(naver_review_id):
+        logger.error(f"유효한 naver_review_id가 아니어서 답글을 수정할 수 없습니다: {naver_review_id!r}")
         return False
 
     if not new_text or len(new_text) < 15:
@@ -227,7 +258,7 @@ def edit_reply_on_naver(
         logger.info(f"답글 수정 URL: {reply_url}")
 
         # 답글 수정
-        return _edit_reply(driver, reply_url, new_text)
+        return _edit_reply(driver, reply_url, naver_review_id, new_text)
 
     except Exception as e:
         logger.error(f"네이버 답글 수정 실패: {e}")

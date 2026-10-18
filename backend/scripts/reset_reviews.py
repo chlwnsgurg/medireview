@@ -11,13 +11,14 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import SessionLocal
-from models import Review, Comment, Alert
+from models import Review, Comment, Alert, AutomationLog
 
 
 def reset_reviews():
     db = SessionLocal()
     try:
-        # 관련 댓글, 알림 먼저 삭제
+        # 관련 자동화 로그, 댓글, 알림 먼저 삭제
+        log_count = db.query(AutomationLog).delete()
         comment_count = db.query(Comment).delete()
         alert_count = db.query(Alert).delete()
         review_count = db.query(Review).delete()
@@ -27,6 +28,7 @@ def reset_reviews():
         print(f"  - 리뷰: {review_count}건")
         print(f"  - 댓글: {comment_count}건")
         print(f"  - 알림: {alert_count}건")
+        print(f"  - 자동화 로그: {log_count}건")
 
     except Exception as e:
         db.rollback()
@@ -36,7 +38,7 @@ def reset_reviews():
 
 
 if __name__ == "__main__":
-    confirm = input("모든 리뷰, 댓글, 알림을 삭제합니다. 계속하시겠습니까? (y/N): ")
+    confirm = input("모든 리뷰, 댓글, 알림, 자동화 로그를 삭제합니다. 계속하시겠습니까? (y/N): ")
     if confirm.lower() == "y":
         reset_reviews()
     else:

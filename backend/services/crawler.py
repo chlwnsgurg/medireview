@@ -34,6 +34,14 @@ def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int
             .first()
         )
         if existing:
+            # 로그인 풀림 등으로 답변 상태를 알 수 없으면 기존 상태 유지
+            if not r.get("reply_status_known", True):
+                continue
+            # 답변 상태는 네이버 실제 상태로 동기화 (외부에서 등록/삭제된 답글 반영)
+            existing.is_replied = r.get("is_replied", False)
+            # 답글이 있는데 내용 추출에 실패한 경우 기존 내용을 유지
+            if r.get("reply_content") or not r.get("is_replied"):
+                existing.reply_content = r.get("reply_content", "")
             continue
 
         review = Review(
@@ -72,8 +80,7 @@ def _save_reviews(db: Session, hospital_id: int, raw_reviews: list[dict]) -> int
 
         saved += 1
 
-    if saved > 0:
-        db.commit()
+    db.commit()
 
     return saved
 
@@ -97,6 +104,11 @@ def sync_naver_reviews(db: Session) -> int:
         f"max_pages={max_pages} ({'증분' if has_existing else '초기'})"
     )
     raw_reviews = fetch_naver_reviews(hospital.naver_place_id, max_pages=max_pages)
+    if raw_reviews and not any(r.get("reply_status_known") for r in raw_reviews):
+        logger.warning(
+            "답글/수정 버튼이 하나도 없습니다. 사업주 로그인이 풀렸을 수 있어 "
+            "기존 리뷰의 답변 상태는 갱신하지 않습니다."
+        )
     saved = _save_reviews(db, hospital.id, raw_reviews)
     logger.info(f"네이버 리뷰 동기화 완료: 신규 {saved}건")
     return saved
