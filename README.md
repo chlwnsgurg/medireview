@@ -10,7 +10,7 @@
 | 기능 | 설명 |
 |------|------|
 | **리뷰 통합 대시보드** | 네이버 지도 리뷰를 자동 수집하여 별점·날짜별 필터링 및 통계 제공 |
-| **AI 댓글 생성** | Google Gemini AI가 리뷰 맥락에 맞는 댓글 초안 3종(공감형·안내형·사과형) 자동 생성 |
+| **AI 댓글 생성** | LLM이 리뷰 맥락에 맞는 댓글 초안 3종(공감형·안내형·사과형) 자동 생성 (로컬 Ollama / Gemini 선택) |
 | **네이버 자동 댓글 등록** | 생성된 댓글을 Selenium으로 네이버에 직접 등록 |
 | **저평점 리뷰 알림** | 기준 이하 별점 리뷰 즉시 알림 |
 | **자동 대응 규칙** | 키워드 보류, 관리자 승인, 완전 자동 등록 등 세밀한 규칙 설정 |
@@ -25,7 +25,7 @@
 - **Language**: Python 3.12
 - **ORM**: SQLAlchemy 2.0
 - **Database**: SQLite
-- **AI**: Google Gemini API (`gemini-2.5-flash`)
+- **AI**: 로컬 Ollama (`gemma4`, 기본값) / Google Gemini API (`gemini-2.5-flash`) — `LLM_PROVIDER`로 전환
 - **크롤링**: Selenium 4.25 + BeautifulSoup4
 - **스케줄러**: APScheduler (60분 주기 자동 수집·자동 대응, `SYNC_INTERVAL_MINUTES`로 조정)
 
@@ -57,7 +57,10 @@ medireview/
 │   ├── services/
 │   │   ├── naver_crawler.py   # 네이버 지도 리뷰 크롤러 (Selenium)
 │   │   ├── crawler.py         # 크롤링 오케스트레이터
-│   │   ├── gemini.py          # Google Gemini AI 댓글 생성
+│   │   ├── llm/               # LLM 프로바이더 (분류·댓글 생성)
+│   │   │   ├── base.py        #   공용 프롬프트/스키마/검증
+│   │   │   ├── ollama_provider.py  #   로컬 Ollama
+│   │   │   └── gemini_provider.py  #   Google Gemini API
 │   │   ├── naver_comment_poster.py  # 네이버 댓글 자동 등록
 │   │   ├── alert_service.py   # 저평점 알림 생성
 │   │   └── automation_service.py    # 자동 대응 엔진
@@ -101,6 +104,19 @@ medireview/
 
 ## 🚀 실행 방법
 
+### 0. 로컬 LLM (Ollama) 준비
+
+```bash
+# 설치 (미설치 시)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 모델 다운로드 및 서버 확인
+ollama pull gemma4
+curl http://localhost:11434/api/tags
+```
+
+> GPU 8GB 이상 권장. VRAM이 부족하면 더 작은 모델(`gemma4:4b` 등)로 `OLLAMA_MODEL`을 바꾸세요.
+
 ### 1. Backend
 
 ```bash
@@ -115,7 +131,15 @@ pip install -r requirements.txt
 
 # 환경 변수 설정
 cat > .env << EOF
-GEMINI_API_KEY=your_gemini_api_key
+# LLM: 로컬 Ollama 사용 (API 비용 없음)
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=gemma4:latest
+OLLAMA_TIMEOUT_SEC=300
+
+# LLM_PROVIDER=gemini 로 전환 시에만 필요
+# GEMINI_API_KEY=your_gemini_api_key
+
 DATABASE_URL=sqlite:///./medireview.db
 SYNC_INTERVAL_MINUTES=60
 NAVER_ID=your_naver_id
