@@ -48,4 +48,9 @@ export const batchAutoReply = () => client.post('/automation/batch-auto-reply');
 export const disconnectKakao = () => client.post('/kakao/disconnect');
 export const sendTestKakaoMessage = () => client.post('/kakao/test-message');
 
+// ── System ──────────────────────────────
+export const getChromeHeadless = () => client.get('/system/chrome-headless');
+export const updateChromeHeadless = (enabled) =>
+  client.put('/system/chrome-headless', { enabled });
+
 export default client;

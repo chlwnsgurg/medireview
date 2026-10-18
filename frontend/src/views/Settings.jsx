@@ -8,6 +8,8 @@ import {
   sendTestKakaoMessage,
   getAutomationRules,
   updateAutomationRules,
+  getChromeHeadless,
+  updateChromeHeadless,
 } from '@medireview/api/client';
 import { useAppPath } from '@medireview/lib/app-root.jsx';
 
@@ -42,6 +44,10 @@ export default function Settings() {
   const [autoMessage, setAutoMessage] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
 
+  // Chrome headless 모드 상태
+  const [headless, setHeadless] = useState(null);
+  const [headlessMessage, setHeadlessMessage] = useState('');
+
   useEffect(() => {
     getHospital()
       .then((res) => {
@@ -62,6 +68,10 @@ export default function Settings() {
           hold_keywords: JSON.parse(res.data.hold_keywords || '[]'),
         });
       })
+      .catch(() => {});
+
+    getChromeHeadless()
+      .then((res) => setHeadless(res.data.enabled))
       .catch(() => {});
   }, []);
 
@@ -190,6 +200,17 @@ export default function Settings() {
 
   const removeKeyword = (kw) => {
     setAutoRule({ ...autoRule, hold_keywords: autoRule.hold_keywords.filter((k) => k !== kw) });
+  };
+
+  const handleHeadlessToggle = async () => {
+    const next = !headless;
+    setHeadlessMessage('');
+    try {
+      const res = await updateChromeHeadless(next);
+      setHeadless(res.data.enabled);
+    } catch (err) {
+      setHeadlessMessage('설정 변경 실패: ' + (err.response?.data?.detail || err.message));
+    }
   };
 
   const handleTestMessage = async () => {
@@ -556,6 +577,39 @@ export default function Settings() {
           </p>
         )}
       </div>
+
+      {/* ── 크롤러 설정 ── */}
+      {headless !== null && (
+        <div className="bg-white rounded-lg shadow p-6 mt-6 space-y-4">
+          <h3 className="text-lg font-bold text-gray-800">크롤러 설정</h3>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-gray-800">Chrome 창 표시</p>
+              <p className="text-sm text-gray-400">
+                켜면 리뷰 동기화·답글 등록 시 Chrome 창이 화면에 표시됩니다 (디버깅용)
+              </p>
+            </div>
+            <button
+              onClick={handleHeadlessToggle}
+              className={`relative w-14 h-7 rounded-full transition-colors ${
+                !headless ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                !headless ? 'translate-x-7' : ''
+              }`} />
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">
+            변경 사항은 다음 크롤링부터 적용되며, 서버를 재시작하면 .env의 CHROME_HEADLESS 값으로 돌아갑니다.
+          </p>
+
+          {headlessMessage && (
+            <p className="text-sm text-red-500">{headlessMessage}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

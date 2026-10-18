@@ -225,3 +225,8 @@ class AutomationLogOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── 시스템 설정 ──────────────────────────
+class ChromeHeadlessSetting(BaseModel):
+    enabled: bool
