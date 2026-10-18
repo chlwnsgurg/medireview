@@ -68,3 +68,6 @@ Thumbs.db
 *.sqlite3
 *.db
 *.sql
+# 임시 참고 자료 (세션 쿠키 등 민감 정보 포함 가능)
+tmp/*
+!tmp/AGENT.md
